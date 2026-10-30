@@ -381,20 +381,24 @@ async function afterLog(kind,t){
   openRemSheet(kind,t);
 }
 function openRemSheet(kind,base){
-  base=base||Date.now();const h=S.rem[kind].hours;const opts={'2':'2 h','2.5':'2½ h','3':'3 h','4':'4 h','custom':'Custom'};
-  const sel=opts[String(h)]?String(h):'custom';
+  base=base||Date.now();const h=S.rem[kind].hours;const opts=[['2','2 h'],['2.5','2½ h'],['3','3 h'],['4','4 h'],['custom','Custom'],['time','At a time']];
+  const sel=opts.some(o=>o[0]===String(h))?String(h):'custom';
   $('#sheet-root').innerHTML=`<div class="scrim" data-scrim><div class="sheet" role="dialog" aria-modal="true"><form id="f-rem" data-kind="${kind}" data-base="${base}">
     <div class="hd"><h2>Remind me about the next ${KL[kind]}?</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
     <div class="field">Counting from ${fmtTime(base)}${radios('hrs',opts,sel)}</div>
     <label class="field" data-custom>Hours from start (e.g. 3.5)<input id="r-custom" name="custom" type="text" inputmode="decimal" value="${h}"></label>
-    <label class="check"><input type="checkbox" id="r-auto" name="auto" ${S.rem[kind].auto?'checked':''}>Set this automatically after every ${KL[kind]}</label>
+    <label class="field" data-attime>Remind me at<input id="r-time" name="attime" type="time" value="${toLocalInput(Math.max(base+h*36e5,Date.now()+5*60e3)).slice(11,16)}"></label>
+    <label class="check" data-autorow><input type="checkbox" id="r-auto" name="auto" ${S.rem[kind].auto?'checked':''}>Set this automatically after every ${KL[kind]}</label>
     <p class="footnote" id="r-preview" style="margin:0"></p>
     <div class="form-actions"><button type="button" class="btn ghost" data-close>No reminder</button><button class="btn" type="submit" style="background:var(--${kind==='feed'?'feed':'pump'})">Set reminder</button></div>
   </form></div></div>`;
   const f=$('#f-rem');
-  const sync=()=>{const v=(f.querySelector('input[name=hrs]:checked')||{}).value;f.querySelector('[data-custom]').hidden=v!=='custom';const hrs=remHours(f);$('#r-preview').textContent=hrs?`Reminder at ${fmtTime(base+hrs*36e5)}`:'Enter between 0.25 and 24 hours.'};
+  const sync=()=>{const v=(f.querySelector('input[name=hrs]:checked')||{}).value;f.querySelector('[data-custom]').hidden=v!=='custom';f.querySelector('[data-attime]').hidden=v!=='time';f.querySelector('[data-autorow]').hidden=v==='time';
+    if(v==='time'){const at=remAt(f);$('#r-preview').textContent=at?`Reminder ${dayKey(at)===dayKey(Date.now())?'today':'tomorrow'} at ${fmtTime(at)}`:'Pick a time.';return}
+    const hrs=remHours(f);$('#r-preview').textContent=hrs?`Reminder at ${fmtTime(base+hrs*36e5)}`:'Enter between 0.25 and 24 hours.'};
   f.addEventListener('change',sync);f.addEventListener('input',sync);sync();
 }
+function remAt(f){const v=f.querySelector('#r-time').value;if(!/^\d{2}:\d{2}$/.test(v))return null;const[H,M]=v.split(':').map(Number);const d=new Date();d.setHours(H,M,0,0);if(d.getTime()<=Date.now())d.setDate(d.getDate()+1);return d.getTime()}
 function remHours(f){const v=(f.querySelector('input[name=hrs]:checked')||{}).value;const n=v==='custom'?numOrNull(f.querySelector('#r-custom').value):parseFloat(v);return(n!=null&&n>=0.25&&n<=24)?n:null}
 function remRow(kind){
   const due=S.rem.due[kind];const label=kind==='feed'?'Next feed':'Next pumping';
@@ -626,7 +630,7 @@ function render(){
 }
 
 // ---------- sheets ----------
-function radios(name,opts,val){return `<div class="radios" role="radiogroup">${Object.entries(opts).map(([v,l])=>`<label><input type="radio" name="${name}" value="${v}" ${v===val?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div>`}
+function radios(name,opts,val){return `<div class="radios" role="radiogroup">${(Array.isArray(opts)?opts:Object.entries(opts)).map(([v,l])=>`<label><input type="radio" name="${name}" value="${v}" ${v===val?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div>`}
 function closeSheet(){$('#sheet-root').innerHTML=''}
 function openSheet(kind,row){
   const editing=!!row;let html='';
@@ -727,6 +731,8 @@ document.addEventListener('click',async ev=>{
 document.addEventListener('submit',async ev=>{
   ev.preventDefault();const f=ev.target;
   if(f.id==='f-sheet')return submitSheet(f);
+  if(f.id==='f-rem'&&(f.querySelector('input[name=hrs]:checked')||{}).value==='time'){const k=f.dataset.kind;const at=remAt(f);if(!at){toast('Pick a time for the reminder.');return}
+    S.rem.due[k]=at;closeSheet();await guarded(saveRem,`Reminder set for ${dayKey(at)===dayKey(Date.now())?'':'tomorrow '}${fmtTime(at)}`);render();return}
   if(f.id==='f-rem'){const k=f.dataset.kind;const hrs=remHours(f);if(!hrs){toast('Enter between 0.25 and 24 hours.');return}
     S.rem[k].hours=hrs;S.rem[k].auto=$('#r-auto').checked;S.rem.due[k]=+f.dataset.base+hrs*36e5;closeSheet();
     await guarded(saveRem,`Reminder set for ${fmtTime(S.rem.due[k])}`);render();return}
