@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Baby Care Log</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Baby Log">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#edf0f6" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#11141c" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&display=swap">
+<style>
+html{color-scheme:light;-webkit-text-size-adjust:100%}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+.by{font-size:12px;color:var(--muted);margin-top:2px}
+.login-err{color:var(--danger);font-size:13px;margin:0;min-height:1em}
+/* Layout: single-column phone app, sticky header, fixed bottom tabs, sheets slide up from the bottom */
+:root{
+  --bg:#edf0f6; --surface:#ffffff; --surface-2:#f6f7fb; --ink:#1c2133; --muted:#5b6377; --line:#d8dde9;
+  --feed:#a83f74; --feed-soft:#f5e2ec; --wet:#2c78c2; --wet-soft:#dfecf9; --dirty:#9a6a22; --dirty-soft:#f3e8d5;
+  --growth:#2e8a6a; --growth-soft:#dcf1e8; --pump:#6a4fc2; --danger:#b3261e; --shadow:0 1px 2px rgba(28,33,51,.06),0 6px 20px rgba(28,33,51,.06);
+  --f-display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --f-body:"Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#11141c; --surface:#1a1e29; --surface-2:#212634; --ink:#e7e9f1; --muted:#9ba2b6; --line:#2d3343;
+  --feed:#e584b4; --feed-soft:#3a2333; --wet:#72b1ef; --wet-soft:#1b2c41; --dirty:#d8a75e; --dirty-soft:#352a19;
+  --growth:#6bd0a8; --growth-soft:#17332a; --pump:#ab97f2; --danger:#ff8a80; --shadow:none; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#11141c; --surface:#1a1e29; --surface-2:#212634; --ink:#e7e9f1; --muted:#9ba2b6; --line:#2d3343;
+  --feed:#e584b4; --feed-soft:#3a2333; --wet:#72b1ef; --wet-soft:#1b2c41; --dirty:#d8a75e; --dirty-soft:#352a19;
+  --growth:#6bd0a8; --growth-soft:#17332a; --pump:#ab97f2; --danger:#ff8a80; --shadow:none; color-scheme:dark }
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--feed);outline-offset:2px;border-radius:8px}
+.app{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(96px + env(safe-area-inset-bottom,0px))}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:16px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
+.top h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:-.01em;margin:0;line-height:1.1;text-wrap:balance}
+.top .age{color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap}
+.notice{font-size:13px;color:var(--muted);background:var(--surface-2);border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px}
+main{display:flex;flex-direction:column;gap:16px}
+.card{background:var(--surface);border-radius:18px;padding:16px;box-shadow:var(--shadow);border:1px solid var(--line)}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wrap:balance}
+.num{font-variant-numeric:tabular-nums}
+
+/* status */
+.status{display:flex;flex-direction:column;gap:10px}
+.status .big{font-family:var(--f-display);font-size:34px;font-weight:700;line-height:1;letter-spacing:-.02em}
+.status .sub{color:var(--muted);font-size:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;background:var(--feed-soft);color:var(--feed)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--surface-2);border-radius:12px;padding:10px 8px;text-align:center;min-width:0}
+.stat b{display:block;font-family:var(--f-display);font-size:22px;line-height:1.1}
+.stat span{font-size:11.5px;color:var(--muted)}
+.stat.feed b{color:var(--feed)} .stat.wet b{color:var(--wet)} .stat.dirty b{color:var(--dirty)}
+
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.act{border:0;border-radius:16px;padding:16px 14px;text-align:left;display:flex;flex-direction:column;gap:2px;font-weight:700;font-size:16px}
+.act small{font-weight:500;font-size:12.5px;opacity:.8}
+.act.feed{background:var(--feed);color:var(--surface)}
+.act.diaper{background:var(--wet);color:var(--surface)}
+.act.pump{background:var(--pump);color:var(--surface);grid-column:1/-1;flex-direction:row;align-items:baseline;justify-content:space-between;gap:10px;padding:13px 14px}
+.quick{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 14px;font-size:14px;font-weight:600;display:inline-flex;align-items:center;gap:8px}
+.chip .dot{width:9px;height:9px;border-radius:50%}
+
+/* timeline */
+.list{display:flex;flex-direction:column}
+.item{display:grid;grid-template-columns:54px 12px 1fr;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line);background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;width:100%}
+.item:first-child{border-top:0}
+.item time{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px;padding-top:1px}
+.item .dot{width:12px;height:12px;border-radius:50%;margin-top:5px}
+.item .body{min-width:0}
+.item .ttl{font-weight:600}
+.item .note{color:var(--muted);font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}
+.c-pump{background:var(--pump)} .c-feed{background:var(--feed)} .c-wet{background:var(--wet)} .c-dirty{background:var(--dirty)} .c-both{background:linear-gradient(90deg,var(--wet) 50%,var(--dirty) 50%)}
+.dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.dayhead .tot{font-size:12.5px;color:var(--muted)}
+.empty{color:var(--muted);font-size:14px;padding:6px 0}
+.more{margin-top:4px}
+
+/* charts */
+.chart-wrap{overflow-x:auto}
+svg.chart{display:block;width:100%;height:auto}
+svg.chart text{fill:var(--muted);font-family:var(--f-body);font-size:10px}
+svg.chart .grid{stroke:var(--line);stroke-width:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:6px 0 4px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.seg-tabs{display:flex;background:var(--surface-2);border-radius:12px;padding:3px;gap:3px}
+.seg-tabs button{flex:1;border:0;background:none;border-radius:9px;padding:8px 6px;font-weight:600;font-size:14px;color:var(--muted)}
+.seg-tabs button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.row-between{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{border:0;border-radius:12px;padding:11px 16px;font-weight:700;background:var(--ink);color:var(--surface)}
+.btn.ghost{background:var(--surface-2);color:var(--ink)}
+.btn.green{background:var(--growth);color:var(--surface)}
+.btn.danger{background:none;color:var(--danger);border:1px solid var(--line)}
+table.gt{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+table.gt th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:700;padding:6px 4px}
+table.gt td{padding:9px 4px;border-top:1px solid var(--line)}
+table.gt tr[data-edit]{cursor:pointer}
+.delta{font-size:12px;color:var(--growth)}
+.footnote{font-size:12px;color:var(--muted);margin-top:8px}
+
+/* tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav.tabs button{border:0;background:none;padding:10px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600;color:var(--muted)}
+nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav.tabs button[aria-current="page"]{color:var(--feed)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,12,20,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:22px 22px 0 0;max-height:92vh;overflow-y:auto;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));animation:up .22s ease-out}
+@keyframes up{from{transform:translateY(30px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.sheet form{display:flex;flex-direction:column;gap:14px}
+.sheet .hd{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.x{border:0;background:var(--surface-2);border-radius:50%;width:34px;height:34px;font-size:18px;line-height:1}
+.field{display:flex;flex-direction:column;gap:6px;font-size:13px;font-weight:600;color:var(--muted);min-width:0}
+.field input,.field textarea,.field select{background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;font-size:16px;font-weight:500;color:var(--ink);width:100%;min-width:0}
+.field textarea{min-height:76px;resize:vertical}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.radios{display:flex;flex-wrap:wrap;gap:6px}
+.radios label{position:relative}
+.radios input{position:absolute;opacity:0;inset:0}
+.radios span{display:inline-block;padding:9px 13px;border-radius:999px;border:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink);background:var(--surface)}
+.radios input:checked + span{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.radios input:focus-visible + span{outline:2px solid var(--feed);outline-offset:2px}
+.form-actions{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
+.form-actions .btn:not(.danger){flex:1}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--surface);border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;display:flex;gap:14px;align-items:center;max-width:calc(100% - 32px)}
+.rem{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.rem:first-of-type{border-top:0}
+.rem b{font-weight:700}
+.rem .sub{font-size:13px;color:var(--muted)}
+.rem.over .sub{color:var(--danger);font-weight:600}
+.rem-btns{display:flex;gap:6px;flex-wrap:wrap}
+.rem-btns .chip{padding:6px 12px;font-size:13px}
+.alert{background:var(--feed-soft);border:1px solid var(--feed);border-radius:14px;padding:12px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.alert.pump{background:var(--surface-2);border-color:var(--pump)}
+.alert .sub{font-size:13px;color:var(--muted)}
+.check{display:flex;gap:10px;align-items:center;font-weight:600;font-size:14px;color:var(--ink)}
+.check input{width:20px;height:20px;accent-color:var(--feed);flex:none}
+.auto-row{display:grid;grid-template-columns:1fr 130px;gap:10px;align-items:end}
+.toast button{border:0;background:none;color:var(--surface);text-decoration:underline;font-weight:700}
+.setup{display:flex;flex-direction:column;gap:12px}
+@media (max-width:380px){.stats{grid-template-columns:repeat(2,1fr)}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top"><h1 id="hd-name">Baby Care Log</h1><span class="age" id="hd-age"></span></header>
+  <div id="notice"></div>
+  <main id="view"></main>
+</div>
+<nav class="tabs" aria-label="Sections"><div class="in">
+  <button data-tab="today" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Today</button>
+  <button data-tab="history"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>History</button>
+  <button data-tab="growth"><svg viewBox="0 0 24 24"><path d="M3 18c4-1 6-4 8-8s5-6 10-6"/><circle cx="21" cy="4" r="1.2"/></svg>Growth</button>
+  <button data-tab="baby"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4.5"/><path d="M4.5 21c1.2-3.6 4-5.2 7.5-5.2s6.3 1.6 7.5 5.2"/></svg>Baby</button>
+</div></nav>
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<script>
+(function(){
+// ---------- helpers ----------
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const DAY=864e5;
+const toLocalInput=ms=>{const d=new Date(ms);return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`};
+const dayKey=ms=>toLocalInput(ms).slice(0,10);
+const keyToMs=k=>{const[Y,M,D]=k.split('-').map(Number);return new Date(Y,M-1,D).getTime()};
+const fmtTime=ms=>new Date(ms).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+const fmtDay=k=>{if(k===dayKey(Date.now()))return'Today';if(k===dayKey(Date.now()-DAY))return'Yesterday';return new Date(keyToMs(k)).toLocaleDateString([], {weekday:'long',day:'numeric',month:'long'})};
+const fmtDate=ms=>new Date(ms).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'});
+const ago=ms=>{const m=Math.max(0,Math.floor((Date.now()-ms)/60000));if(m<1)return'just now';if(m<60)return m+' min ago';const h=Math.floor(m/60);if(h<48)return h+'h '+pad(m%60)+'m ago';return Math.floor(h/24)+' days ago'};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const numOrNull=v=>{if(v===''||v==null)return null;const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:null};
+
+const FEED={breast:'Breast',bottle:'Expressed milk',formula:'Formula',solids:'Solids'};
+const SIDE={L:'Left',R:'Right',both:'Both sides'};
+const DIAPER={wet:'Wet',dirty:'Dirty',both:'Wet + dirty'};
+const COLORS=['Yellow','Mustard','Green','Brown','Black','Other'];
+
+// WHO weight-for-age, months 0–12 (kg): 3rd, 50th, 97th percentile
+const WHO={
+  girl:{p3:[2.4,3.2,4.0,4.6,5.1,5.5,5.8,6.1,6.3,6.6,6.8,7.0,7.1],p50:[3.2,4.2,5.1,5.8,6.4,6.9,7.3,7.6,7.9,8.2,8.5,8.7,8.9],p97:[4.2,5.4,6.5,7.4,8.1,8.7,9.2,9.6,10.0,10.4,10.7,11.0,11.3]},
+  boy:{p3:[2.5,3.4,4.4,5.1,5.6,6.1,6.4,6.7,7.0,7.2,7.5,7.7,7.8],p50:[3.3,4.5,5.6,6.4,7.0,7.5,7.9,8.3,8.6,8.9,9.2,9.4,9.6],p97:[4.4,5.8,7.1,8.0,8.7,9.3,9.8,10.3,10.7,11.0,11.4,11.7,12.0]}
+};
+
+// ---------- state ----------
+const REM_DEFAULT={feed:{auto:false,hours:3},pump:{auto:false,hours:3},due:{feed:null,pump:null}};
+const mergeRem=d=>({feed:{...REM_DEFAULT.feed,...((d&&d.feed)||{})},pump:{...REM_DEFAULT.pump,...((d&&d.pump)||{})},due:{feed:null,pump:null,...((d&&d.due)||{})},tz:(d&&d.tz)||undefined});
+const S={rem:mergeRem(null),profile:{},events:[],growth:[],tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
+const LS='babycarelog.app.v1',LSK='babycarelog.key',LSM='babycarelog.member',LSF='babycarelog.family';
+const AUTH={key:null,member:'',family:'',status:null,error:''};
+try{AUTH.key=localStorage.getItem(LSK);AUTH.member=localStorage.getItem(LSM)||'';AUTH.family=localStorage.getItem(LSF)||''}catch(e){}
+let outbox=[],since=0,flushing=false;
+const sortAll=()=>{S.events.sort((a,b)=>b.t-a.t);S.growth.sort((a,b)=>b.t-a.t)};
+function lsLoad(){try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d){S.profile=d.profile||{};S.events=d.events||[];S.growth=d.growth||[];S.rem=mergeRem(d.rem);since=d.since||0;outbox=d.outbox||[];sortAll();if(S.events.length||S.growth.length)S.loading=false}}catch(e){}}
+function lsSave(){try{localStorage.setItem(LS,JSON.stringify({profile:S.profile,events:S.events,growth:S.growth,rem:S.rem,since,outbox}))}catch(e){}}
+const tz=()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){return undefined}};
+
+async function api(path,opts={}){
+  let r;
+  try{r=await fetch('/api'+path,{method:opts.method||'GET',cache:'no-store',headers:{'content-type':'application/json','x-family-key':AUTH.key||''},body:opts.body!==undefined?JSON.stringify(opts.body):undefined})}
+  catch(e){throw{code:'offline'}}
+  let data=null;try{data=await r.json()}catch(e){}
+  if(r.status===401&&!opts.noAuth){signOut('The family key was changed or is wrong. Enter it again.');throw{code:'auth'}}
+  if(!r.ok)throw{code:'http',status:r.status,data};
+  return data;
+}
+function enqueue(op){outbox=outbox.filter(o=>o.path!==op.path);outbox.push(op);lsSave();flush()}
+async function flush(){
+  if(flushing||!AUTH.key)return;flushing=true;let changed=false;
+  try{
+    while(outbox.length){
+      const op=outbox[0];
+      try{const res=await api(op.path,{method:op.method,body:op.body});if(res&&res.rem){S.rem=mergeRem(res.rem);changed=true}S.online=true}
+      catch(e){if(e.code==='http'&&e.status>=400&&e.status<500){/* rejected for good: drop it */}else{S.online=false;break}}
+      outbox.shift();lsSave();changed=true;
+    }
+  }finally{flushing=false;if(changed)render()}
+}
+function mergeRows(coll,rows){const map=new Map(S[coll].map(r=>[r.id,r]));rows.forEach(r=>{if(r.deleted)map.delete(r.id);else map.set(r.id,r)});S[coll]=[...map.values()]}
+let pulling=false;
+async function pull(){
+  if(!AUTH.key||pulling)return;pulling=true;
+  try{
+    await flush();
+    if(outbox.length){S.loading=false;render();return}
+    const d=await api('/sync?since='+since);
+    if(d.full){S.events=[];S.growth=[]}
+    mergeRows('events',d.events);mergeRows('growth',d.growth);
+    S.profile=d.profile||{};S.rem=mergeRem(d.rem);since=d.now;S.loading=false;S.online=true;sortAll();lsSave();checkDue();render();
+  }catch(e){if(e.code!=='auth'){S.online=false;S.loading=false;render()}}
+  finally{pulling=false}
+}
+
+async function saveRow(coll,id,data){
+  const arr=S[coll];const i=arr.findIndex(x=>x.id===id);
+  if(coll==='events')data={...data,by:(i>=0&&arr[i].by)||AUTH.member||''};
+  const row={...data,id};if(i>=0)arr[i]=row;else arr.push(row);sortAll();lsSave();render();
+  enqueue({method:'PUT',path:`/${coll}/${id}`,body:data});
+}
+async function removeRow(coll,id){S[coll]=S[coll].filter(x=>x.id!==id);lsSave();render();enqueue({method:'DELETE',path:`/${coll}/${id}`})}
+async function saveProfile(p){S.profile=p;lsSave();render();enqueue({method:'PUT',path:'/profile',body:p})}
+async function guarded(fn,okMsg,undo){
+  try{await fn();if(okMsg)toast(okMsg,undo);return true}
+  catch(e){toast("Couldn't save on this phone. Free up some storage and try again.");return false}
+}
+async function saveRem(){S.rem.tz=tz();lsSave();render();enqueue({method:'PUT',path:'/reminders',body:S.rem})}
+
+// ---------- sign-in ----------
+async function rememberKey(key){
+  AUTH.key=key;try{localStorage.setItem(LSK,key);localStorage.setItem(LSM,AUTH.member);localStorage.setItem(LSF,AUTH.family)}catch(e){}
+  try{const c=await caches.open('babylog-key');await c.put('/__key',new Response(key))}catch(e){}
+}
+function signOut(msg){
+  AUTH.key=null;AUTH.error=msg||'';S.events=[];S.growth=[];S.profile={};S.rem=mergeRem(null);since=0;outbox=[];S.loading=true;
+  try{localStorage.removeItem(LSK);localStorage.removeItem(LS)}catch(e){}
+  try{caches.delete('babylog-key')}catch(e){}
+  if(PUSH.sub){try{PUSH.sub.unsubscribe()}catch(e){}PUSH.sub=null}
+  loadStatus();render();
+}
+async function loadStatus(){try{AUTH.status=await api('/status',{noAuth:true})}catch(e){AUTH.status={error:true}}render()}
+function renderLogin(){
+  const st=AUTH.status;
+  if(!st)return `<section class="card"><p class="empty">Connecting…</p></section>`;
+  if(st.error)return `<section class="card setup"><h2>Can't reach Baby Care Log</h2><p style="margin:0;color:var(--muted)">Check that this phone is online, then try again.</p><div><button class="btn" data-retry>Try again</button></div></section>`;
+  if(!st.setup)return `<section class="card"><form id="f-setup" class="setup">
+    <h2>Set up your family's log</h2>
+    <p style="margin:0;color:var(--muted);font-size:14px">Pick a family key. Everyone who should see and add entries signs in with it, so share it only with family.</p>
+    <label class="field">Family name<input id="l-family" name="family" placeholder="e.g. Our family" autocomplete="off"></label>
+    <label class="field">Family key<input id="l-key" name="key" type="password" minlength="6" required autocomplete="new-password" placeholder="At least 6 characters"></label>
+    <label class="field">Your name<input id="l-member" name="member" required placeholder="Shown on entries you log" autocomplete="given-name"></label>
+    <p class="login-err" id="l-err">${esc(AUTH.error)}</p>
+    <div><button class="btn" type="submit">Create family log</button></div></form></section>`;
+  return `<section class="card"><form id="f-login" class="setup">
+    <h2>${st.family?'Join '+esc(st.family):'Sign in'}</h2>
+    <p style="margin:0;color:var(--muted);font-size:14px">Enter the family key you were given.</p>
+    <label class="field">Family key<input id="l-key" name="key" type="password" required autocomplete="current-password"></label>
+    <label class="field">Your name<input id="l-member" name="member" required placeholder="Shown on entries you log" value="${esc(AUTH.member)}" autocomplete="given-name"></label>
+    <p class="login-err" id="l-err">${esc(AUTH.error)}</p>
+    <div><button class="btn" type="submit">Sign in</button></div></form></section>`;
+}
+async function submitLogin(f){
+  const fd=new FormData(f);const key=String(fd.get('key')||'').trim();const member=String(fd.get('member')||'').trim();
+  const err=$('#l-err');const btn=f.querySelector('button[type=submit]');btn.disabled=true;
+  try{
+    if(f.id==='f-setup'){
+      if(key.length<6){err.textContent='Use at least 6 characters for the family key.';return}
+      await api('/setup',{method:'POST',noAuth:true,body:{key,family:String(fd.get('family')||'').trim()}});
+      AUTH.family=String(fd.get('family')||'').trim();
+    }else{
+      const r=await api('/login',{method:'POST',noAuth:true,body:{key}});AUTH.family=r.family||'';
+    }
+    AUTH.member=member;AUTH.error='';await rememberKey(key);S.loading=true;since=0;render();pull();refreshPush();
+  }catch(e){
+    err.textContent=e.code==='offline'?'No connection. Check this phone is online.':e.status===401?'That family key is not right.':e.status===409?'This log is already set up. Reload and sign in instead.':'Something went wrong. Try again.';
+  }finally{btn.disabled=false}
+}
+
+// ---------- notifications ----------
+const PUSH={sub:null,busy:false};
+function b64uToBytes(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';const b=atob(s);return Uint8Array.from(b,c=>c.charCodeAt(0))}
+function pushSupport(){
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  return{ios,standalone,ok:'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window};
+}
+async function refreshPush(){try{if(!pushSupport().ok)return;const reg=await navigator.serviceWorker.ready;PUSH.sub=await reg.pushManager.getSubscription();if(PUSH.sub&&AUTH.key)api('/subscribe',{method:'POST',body:{subscription:PUSH.sub.toJSON(),member:AUTH.member}}).catch(()=>{})}catch(e){}render()}
+async function enablePush(){
+  PUSH.busy=true;render();
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){toast('Notifications are blocked. Allow them for Baby Care Log in your phone settings.');return}
+    const reg=await navigator.serviceWorker.ready;const{publicKey}=await api('/vapid');
+    let sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64uToBytes(publicKey)});
+    await api('/subscribe',{method:'POST',body:{subscription:sub.toJSON(),member:AUTH.member}});
+    PUSH.sub=sub;await api('/test-push',{method:'POST',body:{endpoint:sub.endpoint}});
+    toast('Notifications are on. A test is on its way.');loadDevices();
+  }catch(e){toast(e.code==='offline'?'No connection. Try again when online.':"Couldn't turn on notifications. Try again.")}
+  finally{PUSH.busy=false;render()}
+}
+async function disablePush(){
+  try{if(PUSH.sub){await api('/unsubscribe',{method:'POST',body:{endpoint:PUSH.sub.endpoint}}).catch(()=>{});await PUSH.sub.unsubscribe()}}catch(e){}
+  PUSH.sub=null;toast('Notifications are off for this phone');loadDevices();render();
+}
+async function testPush(){try{const r=await api('/test-push',{method:'POST',body:{endpoint:PUSH.sub&&PUSH.sub.endpoint}});toast(r.sent?'Test sent. It should arrive in a few seconds.':"The test didn't go through. Turn notifications off and on again.")}catch(e){toast('No connection. Try again when online.')}}
+async function loadDevices(){try{const r=await api('/devices');S.devices=r.devices.length;render()}catch(e){}}
+function renderNotifyCard(){
+  const s=pushSupport();let body;
+  if(s.ios&&!s.standalone)body=`<p style="margin:0">On iPhone, notifications only work from the home-screen app. In Safari tap <b>Share</b>, then <b>Add to Home Screen</b>. Open Baby Care Log from the new icon and come back here.</p>`;
+  else if(!s.ok)body=`<p style="margin:0">This browser can't receive notifications. Use Chrome on Android, or Safari on iPhone with the app added to the home screen.</p>`;
+  else if(PUSH.sub)body=`<p style="margin:0">On for this phone. Feed and pumping reminders arrive even when the app is closed.</p><div class="rem-btns" style="margin-top:10px"><button class="chip" data-push-test>Send a test</button><button class="chip" data-push-off>Turn off</button></div>`;
+  else body=`<p style="margin:0">Get a notification on this phone when a feed or pumping reminder is due, even with the app closed.</p><div style="margin-top:10px"><button class="btn" data-push-on ${PUSH.busy?'disabled':''}>${PUSH.busy?'Turning on…':'Turn on notifications'}</button></div>`;
+  return `<section class="card"><p class="eyebrow">Notifications on this phone</p>${body}<p class="footnote">Each family member turns this on once on their own phone.${S.devices!=null?` ${S.devices} phone${S.devices===1?' is':'s are'} getting reminders.`:''}</p></section>`;
+}
+function renderFamilyCard(){
+  return `<section class="card"><p class="eyebrow">Family</p>
+  <p style="margin:0">Signed in as <b>${esc(AUTH.member||'family member')}</b>${AUTH.family?` · ${esc(AUTH.family)}`:''}. Family members join by opening this app's web address and entering the family key.</p>
+  <div class="rem-btns" style="margin-top:10px"><button class="chip" data-copy-link>Copy app link</button><button class="chip" data-export>Export data</button><label class="chip" for="imp" style="cursor:pointer">Import data</label><input type="file" id="imp" accept=".json,application/json" hidden></div>
+  <div class="rem-btns" style="margin-top:8px"><button class="chip" data-signout>Sign out on this phone</button></div>
+  <p class="footnote">${S.events.length} feed, diaper and pumping entries · ${S.growth.length} measurements</p></section>`;
+}
+const KL={feed:'feed',pump:'pumping session'};
+const fmtDur=ms=>{const m=Math.round(Math.abs(ms)/60000);if(m<60)return m+' min';return Math.floor(m/60)+'h '+pad(m%60)+'m'};
+const fmtIn=due=>{const d=due-Date.now();return d>0?'in '+fmtDur(d):fmtDur(d)+' overdue'};
+async function afterLog(kind,t){
+  if(t<Date.now()-6*36e5)return;
+  const latest=S.events.find(e=>e.type===kind);if(latest&&latest.t>t)return;
+  const cfg=S.rem[kind];
+  if(cfg.auto){S.rem.due[kind]=t+cfg.hours*36e5;if(await guarded(saveRem))toast(`Next ${KL[kind]} reminder at ${fmtTime(S.rem.due[kind])}`);render();return}
+  if(S.rem.due[kind]){S.rem.due[kind]=null;await guarded(saveRem)}
+  openRemSheet(kind,t);
+}
+function openRemSheet(kind,base){
+  base=base||Date.now();const h=S.rem[kind].hours;const opts={'2':'2 h','2.5':'2½ h','3':'3 h','4':'4 h','custom':'Custom'};
+  const sel=opts[String(h)]?String(h):'custom';
+  $('#sheet-root').innerHTML=`<div class="scrim" data-scrim><div class="sheet" role="dialog" aria-modal="true"><form id="f-rem" data-kind="${kind}" data-base="${base}">
+    <div class="hd"><h2>Remind me about the next ${KL[kind]}?</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
+    <div class="field">Counting from ${fmtTime(base)}${radios('hrs',opts,sel)}</div>
+    <label class="field" data-custom>Hours from start (e.g. 3.5)<input id="r-custom" name="custom" type="text" inputmode="decimal" value="${h}"></label>
+    <label class="check"><input type="checkbox" id="r-auto" name="auto" ${S.rem[kind].auto?'checked':''}>Set this automatically after every ${KL[kind]}</label>
+    <p class="footnote" id="r-preview" style="margin:0"></p>
+    <div class="form-actions"><button type="button" class="btn ghost" data-close>No reminder</button><button class="btn" type="submit" style="background:var(--${kind==='feed'?'feed':'pump'})">Set reminder</button></div>
+  </form></div></div>`;
+  const f=$('#f-rem');
+  const sync=()=>{const v=(f.querySelector('input[name=hrs]:checked')||{}).value;f.querySelector('[data-custom]').hidden=v!=='custom';const hrs=remHours(f);$('#r-preview').textContent=hrs?`Reminder at ${fmtTime(base+hrs*36e5)}`:'Enter between 0.25 and 24 hours.'};
+  f.addEventListener('change',sync);f.addEventListener('input',sync);sync();
+}
+function remHours(f){const v=(f.querySelector('input[name=hrs]:checked')||{}).value;const n=v==='custom'?numOrNull(f.querySelector('#r-custom').value):parseFloat(v);return(n!=null&&n>=0.25&&n<=24)?n:null}
+function remRow(kind){
+  const due=S.rem.due[kind];const label=kind==='feed'?'Next feed':'Next pumping';
+  if(!due)return `<div class="rem"><div><b>${label}</b><div class="sub">${S.rem[kind].auto?`Set automatically, every ${S.rem[kind].hours} h`:'No reminder set'}</div></div><div class="rem-btns"><button class="chip" data-rem-set="${kind}">Set reminder</button></div></div>`;
+  const over=due<=Date.now();
+  return `<div class="rem ${over?'over':''}"><div><b>${label} · ${fmtTime(due)}</b><div class="sub" data-due="${due}">${fmtIn(due)}</div></div><div class="rem-btns"><button class="chip" data-snooze="${kind}">+15 min</button><button class="chip" data-rem-set="${kind}">Change</button><button class="chip" data-rem-clear="${kind}">Clear</button></div></div>`;
+}
+function renderRemCard(){
+  const showPump=S.rem.pump.auto||S.rem.due.pump||S.events.some(e=>e.type==='pump');
+  return `<section class="card"><p class="eyebrow">Reminders</p>${remRow('feed')}${showPump?remRow('pump'):''}
+    <p class="footnote">Reminders notify every family phone that has notifications on (Baby tab). The app also chimes while it is open.${'wakeLock' in navigator?` <button class="chip" data-wake style="margin-top:6px">${wake?'Screen kept awake · turn off':'Keep screen awake'}</button>`:''}</p></section>`;
+}
+let wake=null;
+async function toggleWake(){
+  if(wake){try{await wake.release()}catch(e){}wake=null;render();return}
+  try{wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null;render()});render()}
+  catch(e){toast("This screen can't be kept awake here. Turn off auto-lock in your phone settings for the night.")}
+}
+let actx=null;
+document.addEventListener('pointerdown',()=>{try{if(!actx){const C=window.AudioContext||window.webkitAudioContext;if(C)actx=new C()}if(actx&&actx.state==='suspended')actx.resume()}catch(e){}},{capture:true});
+function chime(){
+  try{navigator.vibrate&&navigator.vibrate([300,150,300,150,300])}catch(e){}
+  try{if(!actx)return;const n=actx.currentTime;[0,0.4,0.8].forEach((o,i)=>{const os=actx.createOscillator(),g=actx.createGain();os.type='sine';os.frequency.value=[660,784,988][i];g.gain.setValueAtTime(0.0001,n+o);g.gain.exponentialRampToValueAtTime(0.3,n+o+0.03);g.gain.exponentialRampToValueAtTime(0.0001,n+o+0.35);os.connect(g).connect(actx.destination);os.start(n+o);os.stop(n+o+0.4)})}catch(e){}
+}
+const fired=new Set();
+function checkDue(){
+  let changed=false;
+  ['feed','pump'].forEach(k=>{const d=S.rem.due[k];if(d&&d<=Date.now()&&!fired.has(k+d)){fired.add(k+d);changed=true;if(Date.now()-d<15*60e3)chime()}});
+  if(changed)render();
+  document.querySelectorAll('[data-due]').forEach(el=>{el.textContent=fmtIn(+el.dataset.due)});
+}
+
+// ---------- derived ----------
+const feeds=()=>S.events.filter(e=>e.type==='feed');
+const diapers=()=>S.events.filter(e=>e.type==='diaper');
+function nextSide(){const last=feeds().find(f=>f.kind==='breast'&&(f.side==='L'||f.side==='R'));return last?(last.side==='L'?'R':'L'):'L'}
+function ageText(){
+  if(!S.profile.birth)return'';const b=keyToMs(S.profile.birth);const days=Math.floor((keyToMs(dayKey(Date.now()))-b)/DAY);
+  if(days<0)return'';if(days<14)return days===1?'1 day old':days+' days old';
+  if(days<70){const w=Math.floor(days/7),d=days%7;return w+' weeks'+(d?' '+d+(d===1?' day':' days'):'')}
+  const bd=new Date(b),n=new Date();let m=(n.getFullYear()-bd.getFullYear())*12+n.getMonth()-bd.getMonth();if(n.getDate()<bd.getDate())m--;
+  const anchor=new Date(bd.getFullYear(),bd.getMonth()+m,bd.getDate());const w=Math.floor((n-anchor)/DAY/7);
+  return m+(m===1?' month':' months')+(w?' '+w+(w===1?' week':' weeks'):'');
+}
+function evTitle(e){
+  if(e.type==='feed'){const p=[FEED[e.kind]||'Feed'];if(e.kind==='breast'&&e.side)p.push(SIDE[e.side]);if(e.min)p.push(e.min+' min');if(e.ml)p.push(e.ml+' ml');return p.join(' · ')}
+  if(e.type==='pump'){const p=['Pumping'];if(e.side)p.push(SIDE[e.side]);if(e.min)p.push(e.min+' min');if(e.ml)p.push(e.ml+' ml');return p.join(' · ')}
+  const p=[DIAPER[e.kind]||'Diaper'];if((e.kind==='dirty'||e.kind==='both')&&e.color)p.push(e.color);return p.join(' · ');
+}
+const evDot=e=>e.type==='pump'?'c-pump':e.type==='feed'?'c-feed':e.kind==='wet'?'c-wet':e.kind==='dirty'?'c-dirty':'c-both';
+function dayTotals(list){
+  const f=list.filter(e=>e.type==='feed');const ml=f.reduce((s,e)=>s+(+e.ml||0),0);
+  const wet=list.filter(e=>e.type==='diaper'&&(e.kind==='wet'||e.kind==='both')).length;
+  const dirty=list.filter(e=>e.type==='diaper'&&(e.kind==='dirty'||e.kind==='both')).length;
+  const pumps=list.filter(e=>e.type==='pump');const pumped=pumps.reduce((s,e)=>s+(+e.ml||0),0);
+  return{feeds:f.length,ml,wet,dirty,pumps:pumps.length,pumped};
+}
+
+function intake(list){
+  const f=list.filter(e=>e.type==='feed');const exp=f.filter(e=>e.kind==='bottle').reduce((s,e)=>s+(+e.ml||0),0);
+  const form=f.filter(e=>e.kind==='formula').reduce((s,e)=>s+(+e.ml||0),0);
+  return{ml:exp+form,exp,form,bottles:f.filter(e=>(e.kind==='bottle'||e.kind==='formula')&&e.ml).length,breast:f.filter(e=>e.kind==='breast').length};
+}
+function renderIntakeCard(){
+  const now=Date.now();const r=intake(S.events.filter(e=>e.t>now-DAY&&e.t<=now));
+  const parts=[];if(r.exp)parts.push(`expressed ${r.exp} ml`);if(r.form)parts.push(`formula ${r.form} ml`);
+  const avg=r.bottles?Math.round(r.ml/r.bottles):0;
+  return `<section class="card"><p class="eyebrow">Milk in the last 24 hours</p>
+    <div class="row-between" style="align-items:baseline"><div class="status"><div class="big num" style="color:var(--feed)">${r.ml} ml</div></div>${r.bottles?`<span class="sub num" style="color:var(--muted);font-size:14px">${r.bottles} bottle feeds · avg ${avg} ml</span>`:''}</div>
+    <p class="footnote">${parts.length?parts.join(' · ')+'. ':''}${r.breast?`Plus ${r.breast} breast feed${r.breast>1?'s':''}, which can't be measured in ml.`:r.ml?'':'Bottle feeds with an amount in ml add up here.'}</p></section>`;
+}
+function intakeChart(){
+  const days=[];for(let i=13;i>=0;i--){const k=dayKey(Date.now()-i*DAY);days.push({k,...intake(S.events.filter(e=>dayKey(e.t)===k))})}
+  const W=340,H=190,L=34,R=6,T=16,B=24;const mx=Math.max(100,...days.map(d=>d.ml));const st=niceStep(mx);const top=Math.ceil(mx/st)*st;
+  const y=v=>T+(H-T-B)*(1-v/top);const gw=(W-L-R)/14,bw=Math.max(4,gw*0.62);let g='';
+  for(let v=0;v<=top+1e-9;v+=st)g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${Math.round(v)}</text>`;
+  days.forEach((d,i)=>{const x=L+i*gw+(gw-bw)/2;
+    if(d.exp)g+=`<rect x="${x}" y="${y(d.exp)}" width="${bw}" height="${y(0)-y(d.exp)}" fill="var(--feed)"><title>Expressed ${d.exp} ml</title></rect>`;
+    if(d.form)g+=`<rect x="${x}" y="${y(d.ml)}" width="${bw}" height="${y(d.exp)-y(d.ml)}" fill="var(--dirty)"><title>Formula ${d.form} ml</title></rect>`;
+    if(d.ml&&(i%2===1||i===13))g+=`<text x="${x+bw/2}" y="${y(d.ml)-4}" text-anchor="middle" style="fill:var(--ink);font-size:9px">${d.ml}</text>`;
+    if(i%2===1||i===13)g+=`<text x="${x+bw/2}" y="${H-8}" text-anchor="middle">${i===13?'Today':new Date(keyToMs(d.k)).getDate()}</text>`;
+  });
+  const full=days.slice(0,13).filter(d=>d.ml);const avg=full.length?Math.round(full.reduce((s,d)=>s+d.ml,0)/full.length):0;
+  if(avg)g+=`<line x1="${L}" x2="${W-R}" y1="${y(avg)}" y2="${y(avg)}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="4 3" opacity=".55"/>`;
+  return {svg:`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Milk per day in ml, last 14 days">${g}</svg>`,avg};
+}
+// ---------- render ----------
+function itemHTML(e){
+  return `<button class="item" data-edit-ev="${esc(e.id)}"><time>${fmtTime(e.t)}</time><span class="dot ${evDot(e)}"></span><span class="body"><span class="ttl">${esc(evTitle(e))}</span>${e.note?`<div class="note">${esc(e.note)}</div>`:''}${e.by?`<div class="by">${esc(e.by)}</div>`:''}</span></button>`;
+}
+function renderToday(){
+  const tk=dayKey(Date.now());const today=S.events.filter(e=>dayKey(e.t)===tk);const t=dayTotals(today);
+  const last=feeds()[0];const ns=nextSide();
+  const status=last?`<div class="status"><p class="eyebrow">Last feed</p><div class="big num" data-ago="${last.t}">${ago(last.t)}</div><div class="sub">${fmtTime(last.t)} · ${esc(evTitle(last))}</div>${feeds().some(f=>f.kind==='breast')?`<div><span class="pill">Next breast: ${SIDE[ns]}</span></div>`:''}</div>`
+    :`<div class="status"><p class="eyebrow">Last feed</p><div class="big">No feeds yet</div><div class="sub">Tap <b>Log feed</b> after the next feed and it will show here.</div></div>`;
+  const lastD=diapers()[0];const lastP=S.events.find(e=>e.type==='pump');
+  return `
+  ${!S.profile.name&&!S.loading?`<section class="card setup"><h2>Start with her name and birth date</h2><p class="sub" style="margin:0;color:var(--muted)">Her age and the growth reference curves use these.</p><div><button class="btn" data-go="baby">Add details</button></div></section>`:''}
+  <section class="card">${status}
+    <div class="stats" style="margin-top:14px">
+      <div class="stat feed"><b class="num">${t.feeds}</b><span>feeds today</span></div>
+      <div class="stat feed"><b class="num">${t.ml}</b><span>ml today</span></div>
+      <div class="stat wet"><b class="num">${t.wet}</b><span>wet</span></div>
+      <div class="stat dirty"><b class="num">${t.dirty}</b><span>dirty</span></div>
+    </div>
+    ${lastD?`<p class="footnote">Last diaper <span data-ago="${lastD.t}">${ago(lastD.t)}</span> · ${esc(DIAPER[lastD.kind])}</p>`:''}
+    ${lastP?`<p class="footnote">Last pumped <span data-ago="${lastP.t}">${ago(lastP.t)}</span>${t.pumps?` · ${t.pumps} today, ${t.pumped} ml`:''}</p>`:''}
+  </section>
+  ${renderIntakeCard()}
+  ${renderRemCard()}
+  <section class="actions">
+    <button class="act feed" data-new="feed">Log feed<small>Breast, bottle or formula</small></button>
+    <button class="act diaper" data-new="diaper">Log diaper<small>Wet, dirty and notes</small></button>
+    <button class="act pump" data-new="pump">Log pumping session<small>Time, side and ml</small></button>
+  </section>
+  <section class="quick" aria-label="One-tap logging">
+    <button class="chip" data-quick="wet"><span class="dot c-wet"></span>Wet now</button>
+    <button class="chip" data-quick="dirty"><span class="dot c-dirty"></span>Dirty now</button>
+    <button class="chip" data-quick="both"><span class="dot c-both"></span>Both now</button>
+    <button class="chip" data-quick="breast"><span class="dot c-feed"></span>${SIDE[ns]} breast now</button>
+  </section>
+  <section class="card"><div class="dayhead"><h2>Today</h2><span class="tot num">${today.length} entries</span></div>
+    <div class="list">${today.length?today.map(itemHTML).join(''):`<p class="empty">${S.loading?'Loading the log…':'Nothing logged today yet.'}</p>`}</div>
+  </section>`;
+}
+function barsChart(){
+  const days=[];for(let i=13;i>=0;i--){const k=dayKey(Date.now()-i*DAY);days.push({k,...dayTotals(S.events.filter(e=>dayKey(e.t)===k))})}
+  const W=340,H=170,L=26,R=6,T=10,B=24;const max=Math.max(4,...days.map(d=>Math.max(d.feeds,d.wet)));
+  const step=max<=8?2:max<=16?4:5;const top=Math.ceil(max/step)*step;const y=v=>T+(H-T-B)*(1-v/top);
+  const gw=(W-L-R)/14,bw=Math.max(3,gw*0.34);let g='';
+  for(let v=0;v<=top;v+=step)g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${v}</text>`;
+  days.forEach((d,i)=>{const x=L+i*gw+gw/2;
+    if(d.feeds)g+=`<rect x="${x-bw-1}" y="${y(d.feeds)}" width="${bw}" height="${y(0)-y(d.feeds)}" rx="2" fill="var(--feed)"><title>${d.feeds} feeds</title></rect>`;
+    if(d.wet)g+=`<rect x="${x+1}" y="${y(d.wet)}" width="${bw}" height="${y(0)-y(d.wet)}" rx="2" fill="var(--wet)"><title>${d.wet} wet</title></rect>`;
+    if(i%2===1||i===13){const dt=new Date(keyToMs(d.k));g+=`<text x="${x}" y="${H-8}" text-anchor="middle">${i===13?'Today':dt.getDate()}</text>`}
+  });
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Feeds and wet diapers per day, last 14 days">${g}</svg>`;
+}
+function renderHistory(){
+  const keys=[];const by={};S.events.forEach(e=>{const k=dayKey(e.t);if(!by[k]){by[k]=[];keys.push(k)}by[k].push(e)});
+  const shown=keys.slice(0,S.historyDays);
+  return `<section class="card"><p class="eyebrow">Last 14 days</p><h2>Feeds and wet diapers per day</h2>
+    <div class="legend"><span><i style="background:var(--feed)"></i>Feeds</span><span><i style="background:var(--wet)"></i>Wet diapers</span></div>
+    <div class="chart-wrap">${barsChart()}</div></section>
+  ${(()=>{const c=intakeChart();return `<section class="card"><p class="eyebrow">Last 14 days</p><h2>Milk per day (ml)</h2>
+    <div class="legend"><span><i style="background:var(--feed)"></i>Expressed milk</span><span><i style="background:var(--dirty)"></i>Formula</span>${c.avg?`<span><i style="background:none;border-top:2px dashed var(--muted);height:0;border-radius:0"></i>Average ${c.avg} ml/day</span>`:''}</div>
+    <div class="chart-wrap">${c.svg}</div><p class="footnote">Counts bottle feeds with an amount in ml, per calendar day. The average leaves out today because it isn't over yet. Breast feeds aren't measured in ml.</p></section>`})()}
+  ${shown.length?shown.map(k=>{const t=dayTotals(by[k]);return `<section class="card"><div class="dayhead"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${t.feeds} feeds${t.ml?' · '+t.ml+' ml':''} · ${t.wet} wet · ${t.dirty} dirty${t.pumps?' · pumped '+t.pumped+' ml':''}</span></div><div class="list">${by[k].map(itemHTML).join('')}</div></section>`}).join('')
+   :`<section class="card"><p class="empty">${S.loading?'Loading the log…':'No entries yet. Logged feeds and diapers appear here, grouped by day.'}</p></section>`}
+  ${keys.length>S.historyDays?`<button class="btn ghost more" data-more>Show earlier days</button>`:''}`;
+}
+function niceStep(r){const raw=r/4;const p=Math.pow(10,Math.floor(Math.log10(raw)));const n=raw/p;return(n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p}
+function growthChart(metric){
+  const pts=S.growth.filter(g=>g[metric]!=null).map(g=>({t:g.t,v:+g[metric]})).sort((a,b)=>a.t-b.t);
+  if(!pts.length)return `<p class="empty">No ${metric==='kg'?'weight':metric==='cm'?'length':'head'} measurements yet. Add one after the next weigh-in at the consultatiebureau or at home.</p>`;
+  const birth=S.profile.birth?keyToMs(S.profile.birth):null;const base=birth??pts[0].t;const age=t=>(t-base)/(30.4375*DAY);
+  const xs=pts.map(p=>age(p.t));const xmax=Math.min(36,Math.max(birth?3:1,Math.ceil(Math.max(...xs)+0.3)));
+  const ref=(metric==='kg'&&birth&&WHO[S.profile.sex])?WHO[S.profile.sex]:null;const refMax=Math.min(12,Math.floor(xmax));
+  let vals=pts.map(p=>p.v);if(ref){for(let m=0;m<=refMax;m++){vals.push(ref.p3[m],ref.p97[m])}}
+  let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<1){lo-=0.5;hi+=0.5}
+  const st=niceStep(hi-lo);lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;
+  const W=340,H=230,L=38,R=16,T=14,B=34;const X=a=>L+(W-L-R)*a/xmax;const Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
+  let g='';const dec=st<1?1:0;
+  for(let v=lo;v<=hi+1e-9;v+=st)g+=`<line class="grid" x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${L-6}" y="${Y(v)+3}" text-anchor="end">${v.toFixed(dec)}</text>`;
+  const xs2=xmax<=6?1:xmax<=12?2:xmax<=24?3:6;
+  for(let m=0;m<=xmax;m+=xs2)g+=`<text x="${X(m)}" y="${H-B+14}" text-anchor="middle">${m}</text>`;
+  g+=`<text x="${(L+W-R)/2}" y="${H-4}" text-anchor="middle">${birth?'age in months':'months since first measurement'}</text>`;
+  if(ref){
+    const top=[],bot=[];for(let m=0;m<=refMax;m++){top.push(`${X(m)},${Y(ref.p97[m])}`);bot.unshift(`${X(m)},${Y(ref.p3[m])}`)}
+    g+=`<polygon points="${top.concat(bot).join(' ')}" fill="var(--growth-soft)" stroke="none"/>`;
+    g+=`<polyline points="${ref.p50.slice(0,refMax+1).map((v,m)=>`${X(m)},${Y(v)}`).join(' ')}" fill="none" stroke="var(--growth)" stroke-width="1.2" stroke-dasharray="4 4" opacity=".8"/>`;
+  }
+  const col=metric==='kg'?'var(--feed)':metric==='cm'?'var(--wet)':'var(--dirty)';
+  if(pts.length>1)g+=`<polyline points="${pts.map(p=>`${X(age(p.t))},${Y(p.v)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+  pts.forEach((p,i)=>{const last=i===pts.length-1;g+=`<circle cx="${X(age(p.t))}" cy="${Y(p.v)}" r="${last?5:3.2}" fill="${last?col:'var(--surface)'}" stroke="${col}" stroke-width="2"><title>${fmtDate(p.t)}: ${p.v}</title></circle>`});
+  const lp=pts[pts.length-1];const lx=X(age(lp.t)),ly=Y(lp.v);const unit=metric==='kg'?' kg':' cm';
+  g+=`<text x="${Math.min(lx,W-R-2)}" y="${ly-10}" text-anchor="${lx>W-70?'end':'middle'}" style="fill:var(--ink);font-weight:700;font-size:11px">${lp.v}${unit}</text>`;
+  return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Growth chart">${g}</svg></div>
+  ${ref?`<div class="legend"><span><i style="background:var(--growth-soft);border:1px solid var(--growth)"></i>WHO 3rd–97th percentile (${S.profile.sex==='girl'?'girls':'boys'})</span><span><i style="background:var(--growth);height:2px;vertical-align:3px"></i>median</span></div>`
+   :metric==='kg'?`<p class="footnote">${birth?'Reference curves cover the first 12 months.':'Add her birth date under Baby to compare against WHO reference curves.'}</p>`:''}`;
+}
+function renderGrowth(){
+  const m=S.metric;const unit=m==='kg'?'kg':'cm';const rows=S.growth;
+  const label={kg:'Weight',cm:'Length',head:'Head'};
+  const tbl=rows.length?`<table class="gt"><thead><tr><th>Date</th><th>Weight</th><th>Length</th><th>Head</th></tr></thead><tbody>${rows.map((r,i)=>{
+    const prev=rows.slice(i+1).find(p=>p.kg!=null);const d=(r.kg!=null&&prev)?Math.round((r.kg-prev.kg)*1000):null;
+    return `<tr data-edit="${esc(r.id)}"><td>${fmtDate(r.t)}${r.note?`<div class="footnote" style="margin:2px 0 0">${esc(r.note)}</div>`:''}</td><td>${r.kg!=null?r.kg+' kg':'–'}${d!=null?`<div class="delta">${d>=0?'+':''}${d} g</div>`:''}</td><td>${r.cm!=null?r.cm+' cm':'–'}</td><td>${r.head!=null?r.head+' cm':'–'}</td></tr>`}).join('')}</tbody></table>`
+    :`<p class="empty">${S.loading?'Loading…':'Measurements you add appear here, newest first.'}</p>`;
+  return `<section class="card"><div class="row-between" style="margin-bottom:12px"><h2>${label[m]} (${unit})</h2><button class="btn green" data-new="growth">Add measurement</button></div>
+    <div class="seg-tabs" role="group" aria-label="Measurement">${['kg','cm','head'].map(k=>`<button data-metric="${k}" aria-pressed="${k===m}">${label[k]}</button>`).join('')}</div>
+    <div style="margin-top:12px">${growthChart(m)}</div></section>
+  <section class="card"><p class="eyebrow">All measurements</p>${tbl}</section>`;
+}
+function renderBaby(){
+  const p=S.profile;
+  return `<section class="card"><form id="f-profile" class="setup">
+    <h2>About her</h2>
+    <label class="field">Name<input id="p-name" name="name" value="${esc(p.name)}" placeholder="Baby's name" autocomplete="off"></label>
+    <label class="field">Birth date<input id="p-birth" name="birth" type="date" value="${esc(p.birth)}"></label>
+    <div class="field">Reference curves<div class="radios">${[['girl','Girl'],['boy','Boy']].map(([v,l])=>`<label><input type="radio" name="sex" value="${v}" ${(p.sex||'girl')===v?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
+    <div><button class="btn" type="submit">Save details</button></div>
+  </form></section>
+  <section class="card"><form id="f-auto" class="setup">
+    <h2>Automatic reminders</h2>
+    <p style="margin:0;color:var(--muted);font-size:14px">After each logged feed or pumping session, a reminder for the next one is set from its start time.</p>
+    <div class="auto-row"><label class="check"><input type="checkbox" id="a-feed" name="feedAuto" ${S.rem.feed.auto?'checked':''}>After every feed</label>
+      <label class="field">Every (hours)<input id="a-feed-h" name="feedH" type="text" inputmode="decimal" value="${S.rem.feed.hours}"></label></div>
+    <div class="auto-row"><label class="check"><input type="checkbox" id="a-pump" name="pumpAuto" ${S.rem.pump.auto?'checked':''}>After every pumping session</label>
+      <label class="field">Every (hours)<input id="a-pump-h" name="pumpH" type="text" inputmode="decimal" value="${S.rem.pump.hours}"></label></div>
+    <div><button class="btn" type="submit">Save reminders</button></div>
+  </form></section>
+  ${renderNotifyCard()}
+  ${renderFamilyCard()}`;
+}
+function render(){
+  document.querySelector('nav.tabs').hidden=!AUTH.key;
+  if(!AUTH.key){$('#hd-name').textContent='Baby Care Log';$('#hd-age').textContent='';$('#notice').innerHTML='';const af=document.activeElement;if(af&&af.closest&&af.closest('#view form'))return;$('#view').innerHTML=renderLogin();return}
+  $('#hd-name').textContent=S.profile.name||'Baby Care Log';
+  $('#hd-age').textContent=ageText();
+  const overdue=['feed','pump'].filter(k=>S.rem.due[k]&&S.rem.due[k]<=Date.now());
+  const alerts=overdue.map(k=>`<div class="alert ${k}" role="alert"><div><b>Time for the next ${KL[k]}</b><div class="sub">Reminder was set for ${fmtTime(S.rem.due[k])}</div></div><div class="rem-btns"><button class="chip" data-new="${k}">Log ${k==='feed'?'feed':'pumping'}</button><button class="chip" data-snooze="${k}">+15 min</button><button class="chip" data-rem-clear="${k}">Dismiss</button></div></div>`).join('');
+  $('#notice').innerHTML=alerts+(!S.online?`<div class="notice">Offline. New entries are kept on this phone${outbox.length?` (${outbox.length} waiting)`:''} and sync when you're back online.</div>`:'');
+  const af=document.activeElement;if(S.tab==='baby'&&af&&af.closest&&af.closest('#view form'))return;
+  const v={today:renderToday,history:renderHistory,growth:renderGrowth,baby:renderBaby}[S.tab]();
+  $('#view').innerHTML=v;
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===S.tab?'page':'false'));
+}
+
+// ---------- sheets ----------
+function radios(name,opts,val){return `<div class="radios" role="radiogroup">${Object.entries(opts).map(([v,l])=>`<label><input type="radio" name="${name}" value="${v}" ${v===val?'checked':''}><span>${esc(l)}</span></label>`).join('')}</div>`}
+function closeSheet(){$('#sheet-root').innerHTML=''}
+function openSheet(kind,row){
+  const editing=!!row;let html='';
+  if(kind==='feed'){
+    const r=row||{kind:'breast',side:nextSide(),t:Date.now()};
+    html=`<form id="f-sheet" data-kind="feed"><div class="hd"><h2>${editing?'Edit feed':'Log a feed'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
+      <div class="field">Type${radios('kind',FEED,r.kind)}</div>
+      <div class="field" data-for="breast">Side${radios('side',SIDE,r.side||'L')}</div>
+      <div class="row2"><label class="field" data-for="breast bottle formula">Duration (min)<input id="s-min" name="min" type="number" inputmode="numeric" min="0" max="240" value="${r.min??''}" placeholder="15"></label>
+        <label class="field" data-for="bottle formula">Amount (ml)<input id="s-ml" name="ml" type="number" inputmode="numeric" min="0" max="500" value="${r.ml??''}" placeholder="90"></label>
+        <label class="field">Time<input id="s-t" name="t" type="datetime-local" value="${toLocalInput(r.t)}" required></label></div>
+      <label class="field">Description<textarea id="s-note" name="note" placeholder="How did it go? e.g. latched well, sleepy at the end, small spit-up">${esc(r.note)}</textarea></label>
+      <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del>Delete</button>`:''}<button class="btn" type="submit" style="background:var(--feed)">${editing?'Save changes':'Save feed'}</button></div></form>`;
+  } else if(kind==='pump'){
+    const r=row||{side:'both',t:Date.now()};
+    html=`<form id="f-sheet" data-kind="pump"><div class="hd"><h2>${editing?'Edit pumping session':'Log a pumping session'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
+      <div class="field">Side${radios('side',SIDE,r.side||'both')}</div>
+      <div class="row2"><label class="field">Duration (min)<input id="s-min" name="min" type="number" inputmode="numeric" min="0" max="240" value="${r.min??''}" placeholder="15"></label>
+        <label class="field">Amount (ml)<input id="s-ml" name="ml" type="number" inputmode="numeric" min="0" max="1000" value="${r.ml??''}" placeholder="120"></label>
+        <label class="field">Start time<input id="s-t" name="t" type="datetime-local" value="${toLocalInput(r.t)}" required></label></div>
+      <label class="field">Description<textarea id="s-note" name="note" placeholder="e.g. 70 ml left, 50 ml right, stored in the fridge">${esc(r.note)}</textarea></label>
+      <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del>Delete</button>`:''}<button class="btn" type="submit" style="background:var(--pump)">${editing?'Save changes':'Save session'}</button></div></form>`;
+  } else if(kind==='diaper'){
+    const r=row||{kind:'wet',t:Date.now()};
+    html=`<form id="f-sheet" data-kind="diaper"><div class="hd"><h2>${editing?'Edit diaper':'Log a diaper'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
+      <div class="field">Type${radios('kind',DIAPER,r.kind)}</div>
+      <div class="field" data-for="dirty both">Stool colour${radios('color',Object.fromEntries(COLORS.map(c=>[c,c])),r.color||'')}</div>
+      <label class="field">Time<input id="s-t" name="t" type="datetime-local" value="${toLocalInput(r.t)}" required></label>
+      <label class="field">Description<textarea id="s-note" name="note" placeholder="e.g. very full, seedy texture, slight redness">${esc(r.note)}</textarea></label>
+      <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del>Delete</button>`:''}<button class="btn" type="submit" style="background:var(--wet)">${editing?'Save changes':'Save diaper'}</button></div></form>`;
+  } else {
+    const r=row||{t:Date.now()};
+    html=`<form id="f-sheet" data-kind="growth"><div class="hd"><h2>${editing?'Edit measurement':'Add measurement'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
+      <label class="field">Date<input id="s-date" name="date" type="date" value="${dayKey(r.t)}" required></label>
+      <div class="row2"><label class="field">Weight (kg)<input id="s-kg" name="kg" type="text" inputmode="decimal" value="${r.kg??''}" placeholder="4.25"></label>
+        <label class="field">Length (cm)<input id="s-cm" name="cm" type="text" inputmode="decimal" value="${r.cm??''}" placeholder="55.5"></label>
+        <label class="field">Head (cm)<input id="s-head" name="head" type="text" inputmode="decimal" value="${r.head??''}" placeholder="38"></label></div>
+      <label class="field">Note<textarea id="s-note" name="note" placeholder="e.g. weighed at the consultatiebureau, after a feed">${esc(r.note)}</textarea></label>
+      <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del>Delete</button>`:''}<button class="btn green" type="submit">${editing?'Save changes':'Save measurement'}</button></div></form>`;
+  }
+  $('#sheet-root').innerHTML=`<div class="scrim" data-scrim><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+  const f=$('#f-sheet');f.dataset.id=row?row.id:'';
+  const sync=()=>{const k=(f.querySelector('input[name=kind]:checked')||{}).value;f.querySelectorAll('[data-for]').forEach(el=>{el.hidden=!el.dataset.for.split(' ').includes(k)})};
+  f.addEventListener('change',sync);sync();
+}
+async function submitSheet(f){
+  const fd=new FormData(f);const kind=f.dataset.kind;const id=f.dataset.id||uid();
+  let coll='events',data;
+  if(kind==='feed'){const k=fd.get('kind');data={type:'feed',kind:k,t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};
+    if(k==='breast')data.side=fd.get('side')||'L';
+    if(k==='breast'||k==='bottle'||k==='formula'){const mn=numOrNull(fd.get('min'));if(mn!=null)data.min=Math.round(mn)}
+    if(k==='bottle'||k==='formula'){const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}}
+  else if(kind==='pump'){data={type:'pump',side:fd.get('side')||'both',t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};const mn=numOrNull(fd.get('min'));if(mn!=null)data.min=Math.round(mn);const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}
+  else if(kind==='diaper'){const k=fd.get('kind');data={type:'diaper',kind:k,t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};if(k!=='wet'&&fd.get('color'))data.color=fd.get('color')}
+  else{coll='growth';data={t:keyToMs(fd.get('date')),kg:numOrNull(fd.get('kg')),cm:numOrNull(fd.get('cm')),head:numOrNull(fd.get('head')),note:(fd.get('note')||'').trim()};
+    if(data.kg==null&&data.cm==null&&data.head==null){toast('Enter at least one measurement.');return}}
+  closeSheet();const isNew=!f.dataset.id;
+  const ok=await guarded(()=>saveRow(coll,id,data),f.dataset.id?'Saved':kind==='growth'?'Measurement saved':kind==='feed'?'Feed logged':kind==='pump'?'Pumping session logged':'Diaper logged');
+  if(ok&&isNew&&(kind==='feed'||kind==='pump'))afterLog(kind,data.t);
+}
+
+// ---------- toast ----------
+let toastTimer;
+function toast(msg,undo){
+  clearTimeout(toastTimer);$('#toast-root').innerHTML=`<div class="toast" role="status"><span>${esc(msg)}</span>${undo?'<button data-undo>Undo</button>':''}</div>`;
+  if(undo)$('#toast-root [data-undo]').onclick=()=>{$('#toast-root').innerHTML='';undo()};
+  toastTimer=setTimeout(()=>{$('#toast-root').innerHTML=''},undo?6000:3200);
+}
+
+// ---------- events ----------
+document.addEventListener('click',async ev=>{
+  const t=ev.target.closest('button,tr[data-edit],[data-scrim]');if(!t)return;
+  if(t.matches('[data-scrim]')){if(ev.target===t)closeSheet();return}
+  if(t.dataset.tab){S.tab=t.dataset.tab;if(S.tab==='baby')loadDevices();render();window.scrollTo(0,0);return}
+  if(t.dataset.go){S.tab=t.dataset.go;render();return}
+  if(t.dataset.new){openSheet(t.dataset.new);return}
+  if(t.hasAttribute('data-close')){closeSheet();return}
+  if(t.dataset.metric){S.metric=t.dataset.metric;render();return}
+  if(t.hasAttribute('data-more')){S.historyDays+=14;render();return}
+  if(t.dataset.editEv){const e=S.events.find(x=>x.id===t.dataset.editEv);if(e)openSheet(e.type,e);return}
+  if(t.dataset.edit){const g=S.growth.find(x=>x.id===t.dataset.edit);if(g)openSheet('growth',g);return}
+  if(t.dataset.quick){const q=t.dataset.quick;const id=uid();
+    const data=q==='breast'?{type:'feed',kind:'breast',side:nextSide(),t:Date.now(),note:''}:{type:'diaper',kind:q,t:Date.now(),note:''};
+    const ok=await guarded(()=>saveRow('events',id,data),q==='breast'?`${SIDE[data.side]} breast feed logged`:`${DIAPER[q]} diaper logged`,()=>guarded(()=>removeRow('events',id),'Removed'));if(ok&&q==='breast')afterLog('feed',data.t);return}
+  if(t.dataset.remSet){const k=t.dataset.remSet;const last=S.events.find(e=>e.type===k);openRemSheet(k,last&&last.t>Date.now()-12*36e5?last.t:Date.now());return}
+  if(t.dataset.snooze){const k=t.dataset.snooze;const d=S.rem.due[k]||Date.now();S.rem.due[k]=Math.max(d,Date.now())+15*60e3;await guarded(saveRem,`Reminder moved to ${fmtTime(S.rem.due[k])}`);render();return}
+  if(t.dataset.remClear){S.rem.due[t.dataset.remClear]=null;await guarded(saveRem,'Reminder cleared');render();return}
+  if(t.hasAttribute('data-wake')){toggleWake();return}
+  if(t.hasAttribute('data-del')){
+    if(!t.dataset.armed){t.dataset.armed='1';t.textContent='Tap again to delete';return}
+    const f=$('#f-sheet');const coll=f.dataset.kind==='growth'?'growth':'events';const id=f.dataset.id;closeSheet();
+    await guarded(()=>removeRow(coll,id),'Deleted');return}
+});
+document.addEventListener('submit',async ev=>{
+  ev.preventDefault();const f=ev.target;
+  if(f.id==='f-sheet')return submitSheet(f);
+  if(f.id==='f-rem'){const k=f.dataset.kind;const hrs=remHours(f);if(!hrs){toast('Enter between 0.25 and 24 hours.');return}
+    S.rem[k].hours=hrs;S.rem[k].auto=$('#r-auto').checked;S.rem.due[k]=+f.dataset.base+hrs*36e5;closeSheet();
+    await guarded(saveRem,`Reminder set for ${fmtTime(S.rem.due[k])}`);render();return}
+  if(f.id==='f-auto'){const fd=new FormData(f);const fh=numOrNull(fd.get('feedH')),ph=numOrNull(fd.get('pumpH'));
+    if(!(fh>=0.25&&fh<=24)||!(ph>=0.25&&ph<=24)){toast('Hours must be between 0.25 and 24.');return}
+    const was={feed:S.rem.feed.auto,pump:S.rem.pump.auto};
+    S.rem.feed={auto:$('#a-feed').checked,hours:fh};S.rem.pump={auto:$('#a-pump').checked,hours:ph};
+    ['feed','pump'].forEach(k=>{if(S.rem[k].auto&&!was[k]&&!S.rem.due[k]){const last=S.events.find(e=>e.type===k);if(last&&last.t+S.rem[k].hours*36e5>Date.now())S.rem.due[k]=last.t+S.rem[k].hours*36e5}});
+    document.activeElement&&document.activeElement.blur&&document.activeElement.blur();
+    await guarded(saveRem,'Reminders saved');render();return}
+  if(f.id==='f-profile'){const fd=new FormData(f);await guarded(()=>saveProfile({name:(fd.get('name')||'').trim(),birth:fd.get('birth')||'',sex:fd.get('sex')||'girl'}),'Details saved')}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+setInterval(()=>{document.querySelectorAll('[data-ago]').forEach(el=>{el.textContent=ago(+el.dataset.ago)});checkDue()},20000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDue()});
+
+// ---------- app-only events ----------
+document.addEventListener('click',async ev=>{
+  const t=ev.target.closest('button');if(!t)return;
+  if(t.hasAttribute('data-retry')){AUTH.status=null;render();loadStatus();return}
+  if(t.hasAttribute('data-push-on')){enablePush();return}
+  if(t.hasAttribute('data-push-off')){disablePush();return}
+  if(t.hasAttribute('data-push-test')){testPush();return}
+  if(t.hasAttribute('data-signout')){if(!t.dataset.armed){t.dataset.armed='1';t.textContent='Tap again to sign out';return}signOut('');return}
+  if(t.hasAttribute('data-copy-link')){const u=location.origin+'/';try{await navigator.clipboard.writeText(u);toast('Link copied. Send it with the family key.')}catch(e){toast(u)}return}
+  if(t.hasAttribute('data-export')){
+    const blob=new Blob([JSON.stringify({exported:new Date().toISOString(),profile:S.profile,events:S.events,growth:S.growth},null,1)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='baby-care-log-'+dayKey(Date.now())+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);return}
+});
+document.addEventListener('change',async ev=>{
+  if(ev.target.id!=='imp'||!ev.target.files[0])return;
+  try{
+    const d=JSON.parse(await ev.target.files[0].text());
+    if(!Array.isArray(d.events)&&!Array.isArray(d.growth))throw 0;
+    const r=await api('/import',{method:'POST',body:{events:d.events||[],growth:d.growth||[],profile:d.profile&&d.profile.name&&!S.profile.name?d.profile:null}});
+    since=0;await pull();toast(`Imported ${r.imported} entries`);
+  }catch(e){toast(e&&e.code==='offline'?'No connection. Try again when online.':"That file isn't a Baby Care Log export.")}
+  ev.target.value='';
+});
+document.addEventListener('submit',ev=>{const f=ev.target;if(f.id==='f-login'||f.id==='f-setup'){ev.preventDefault();submitLogin(f)}});
+setInterval(()=>{if(!document.hidden)pull()},15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)pull()});
+window.addEventListener('online',()=>pull());
+
+// ---------- boot ----------
+lsLoad();
+if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').then(()=>refreshPush()).catch(()=>{})}
+render();
+if(AUTH.key)pull();else loadStatus();
+(()=>{const q=new URLSearchParams(location.search).get('log');if(q&&AUTH.key&&(q==='feed'||q==='pump')){history.replaceState(null,'','/');setTimeout(()=>openSheet(q),250)}})();
+})();
+</script>
+</body>
+</html>

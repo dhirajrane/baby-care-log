@@ -1,0 +1,17 @@
+name = "baby-care-log"
+main = "dist/worker.js"
+compatibility_date = "2024-11-01"
+
+# Builds the app (inlines public/ into the worker) before every deploy.
+[build]
+command = "node scripts/build.mjs"
+
+# Paste your D1 database ID below (Cloudflare → Storage & Databases → D1 → baby-care-log).
+[[d1_databases]]
+binding = "DB"
+database_name = "baby-care-log"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+
+# Checks for due feed and pumping reminders every minute.
+[triggers]
+crons = ["* * * * *"]

@@ -1,0 +1,23 @@
+{
+  "name": "baby-care-log",
+  "version": "1.0.0",
+  "description": "",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs && wrangler dev --test-scheduled",
+    "deploy": "node scripts/build.mjs && wrangler deploy",
+    "test": "node test/e2e.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "http_ece": "^1.2.0",
+    "wrangler": "^3.99.0"
+  },
+  "private": true
+}
