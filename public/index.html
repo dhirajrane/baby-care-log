@@ -112,7 +112,13 @@ table.gt{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric
 table.gt th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:700;padding:6px 4px}
 table.gt td{padding:9px 4px;border-top:1px solid var(--line)}
 table.gt tr[data-edit]{cursor:pointer}
-.delta{font-size:12px;color:var(--growth)}
+.delta{font-size:12px;color:var(--growth);font-weight:600}
+.mrow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 0;border-top:1px solid var(--line)}
+.mrow:first-child{border-top:0}
+.mbody{min-width:0;flex:1 1 180px}
+.mdate{font-size:12.5px;color:var(--muted);font-weight:600}
+.mrow .note{color:var(--muted);font-size:13px;overflow-wrap:anywhere}
+.chip.danger-armed{border-color:var(--danger);color:var(--danger)}
 .footnote{font-size:12px;color:var(--muted);margin-top:8px}
 
 /* tabs */
@@ -541,14 +547,15 @@ function renderHistory(){
   ${keys.length>S.historyDays?`<button class="btn ghost more" data-more>Show earlier days</button>`:''}`;
 }
 function niceStep(r){const raw=r/4;const p=Math.pow(10,Math.floor(Math.log10(raw)));const n=raw/p;return(n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p}
+const grams=kg=>Math.round(kg*1000).toLocaleString();
 function growthChart(metric){
-  const pts=S.growth.filter(g=>g[metric]!=null).map(g=>({t:g.t,v:+g[metric]})).sort((a,b)=>a.t-b.t);
+  const F=metric==='kg'?1000:1;const pts=S.growth.filter(g=>g[metric]!=null).map(g=>({t:g.t,v:Math.round(+g[metric]*F*10)/10})).sort((a,b)=>a.t-b.t);
   if(!pts.length)return `<p class="empty">No ${metric==='kg'?'weight':metric==='cm'?'length':'head'} measurements yet. Add one after the next weigh-in at the consultatiebureau or at home.</p>`;
   const birth=S.profile.birth?keyToMs(S.profile.birth):null;const base=birth??pts[0].t;const age=t=>(t-base)/(30.4375*DAY);
   const xs=pts.map(p=>age(p.t));const xmax=Math.min(36,Math.max(birth?3:1,Math.ceil(Math.max(...xs)+0.3)));
-  const ref=(metric==='kg'&&birth&&WHO[S.profile.sex])?WHO[S.profile.sex]:null;const refMax=Math.min(12,Math.floor(xmax));
+  const W0=(metric==='kg'&&birth&&WHO[S.profile.sex])?WHO[S.profile.sex]:null;const ref=W0?{p3:W0.p3.map(v=>v*F),p50:W0.p50.map(v=>v*F),p97:W0.p97.map(v=>v*F)}:null;const refMax=Math.min(12,Math.floor(xmax));
   let vals=pts.map(p=>p.v);if(ref){for(let m=0;m<=refMax;m++){vals.push(ref.p3[m],ref.p97[m])}}
-  let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<1){lo-=0.5;hi+=0.5}
+  let lo=Math.min(...vals),hi=Math.max(...vals);if(hi-lo<F){lo-=F/2;hi+=F/2}
   const st=niceStep(hi-lo);lo=Math.floor(lo/st)*st;hi=Math.ceil(hi/st)*st;
   const W=340,H=230,L=38,R=16,T=14,B=34;const X=a=>L+(W-L-R)*a/xmax;const Y=v=>T+(H-T-B)*(1-(v-lo)/(hi-lo));
   let g='';const dec=st<1?1:0;
@@ -563,19 +570,20 @@ function growthChart(metric){
   }
   const col=metric==='kg'?'var(--feed)':metric==='cm'?'var(--wet)':'var(--dirty)';
   if(pts.length>1)g+=`<polyline points="${pts.map(p=>`${X(age(p.t))},${Y(p.v)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="2.4" stroke-linejoin="round" stroke-linecap="round"/>`;
-  pts.forEach((p,i)=>{const last=i===pts.length-1;g+=`<circle cx="${X(age(p.t))}" cy="${Y(p.v)}" r="${last?5:3.2}" fill="${last?col:'var(--surface)'}" stroke="${col}" stroke-width="2"><title>${fmtDate(p.t)}: ${p.v}</title></circle>`});
-  const lp=pts[pts.length-1];const lx=X(age(lp.t)),ly=Y(lp.v);const unit=metric==='kg'?' kg':' cm';
+  pts.forEach((p,i)=>{const last=i===pts.length-1;g+=`<circle cx="${X(age(p.t))}" cy="${Y(p.v)}" r="${last?5:3.2}" fill="${last?col:'var(--surface)'}" stroke="${col}" stroke-width="2"><title>${fmtDate(p.t)}: ${p.v}${metric==='kg'?' g':' cm'}</title></circle>`});
+  const lp=pts[pts.length-1];const lx=X(age(lp.t)),ly=Y(lp.v);const unit=metric==='kg'?' g':' cm';
   g+=`<text x="${Math.min(lx,W-R-2)}" y="${ly-10}" text-anchor="${lx>W-70?'end':'middle'}" style="fill:var(--ink);font-weight:700;font-size:11px">${lp.v}${unit}</text>`;
   return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Growth chart">${g}</svg></div>
   ${ref?`<div class="legend"><span><i style="background:var(--growth-soft);border:1px solid var(--growth)"></i>WHO 3rd–97th percentile (${S.profile.sex==='girl'?'girls':'boys'})</span><span><i style="background:var(--growth);height:2px;vertical-align:3px"></i>median</span></div>`
    :metric==='kg'?`<p class="footnote">${birth?'Reference curves cover the first 12 months.':'Add her birth date under Baby to compare against WHO reference curves.'}</p>`:''}`;
 }
 function renderGrowth(){
-  const m=S.metric;const unit=m==='kg'?'kg':'cm';const rows=S.growth;
+  const m=S.metric;const unit=m==='kg'?'g':'cm';const rows=S.growth;
   const label={kg:'Weight',cm:'Length',head:'Head'};
-  const tbl=rows.length?`<table class="gt"><thead><tr><th>Date</th><th>Weight</th><th>Length</th><th>Head</th></tr></thead><tbody>${rows.map((r,i)=>{
+  const tbl=rows.length?`<div class="mlist">${rows.map((r,i)=>{
     const prev=rows.slice(i+1).find(p=>p.kg!=null);const d=(r.kg!=null&&prev)?Math.round((r.kg-prev.kg)*1000):null;
-    return `<tr data-edit="${esc(r.id)}"><td>${fmtDate(r.t)}${r.note?`<div class="footnote" style="margin:2px 0 0">${esc(r.note)}</div>`:''}</td><td>${r.kg!=null?r.kg+' kg':'–'}${d!=null?`<div class="delta">${d>=0?'+':''}${d} g</div>`:''}</td><td>${r.cm!=null?r.cm+' cm':'–'}</td><td>${r.head!=null?r.head+' cm':'–'}</td></tr>`}).join('')}</tbody></table>`
+    const vals=[r.kg!=null?`<b class="num">${grams(r.kg)} g</b>${d!=null?` <span class="delta">${d>=0?'+':''}${d} g</span>`:''}`:'',r.cm!=null?`<span class="num">${r.cm} cm long</span>`:'',r.head!=null?`<span class="num">head ${r.head} cm</span>`:''].filter(Boolean).join(' · ');
+    return `<div class="mrow"><div class="mbody"><div class="mdate">${fmtDate(r.t)}</div><div>${vals}</div>${r.note?`<div class="note">${esc(r.note)}</div>`:''}</div><div class="rem-btns"><button class="chip" data-edit-g="${esc(r.id)}">Edit</button><button class="chip" data-del-g="${esc(r.id)}">Delete</button></div></div>`}).join('')}</div>`
     :`<p class="empty">${S.loading?'Loading…':'Measurements you add appear here, newest first.'}</p>`;
   return `<section class="card"><div class="row-between" style="margin-bottom:12px"><h2>${label[m]} (${unit})</h2><button class="btn green" data-new="growth">Add measurement</button></div>
     <div class="seg-tabs" role="group" aria-label="Measurement">${['kg','cm','head'].map(k=>`<button data-metric="${k}" aria-pressed="${k===m}">${label[k]}</button>`).join('')}</div>
@@ -653,7 +661,7 @@ function openSheet(kind,row){
     const r=row||{t:Date.now()};
     html=`<form id="f-sheet" data-kind="growth"><div class="hd"><h2>${editing?'Edit measurement':'Add measurement'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
       <label class="field">Date<input id="s-date" name="date" type="date" value="${dayKey(r.t)}" required></label>
-      <div class="row2"><label class="field">Weight (kg)<input id="s-kg" name="kg" type="text" inputmode="decimal" value="${r.kg??''}" placeholder="4.25"></label>
+      <div class="row2"><label class="field">Weight (g)<input id="s-kg" name="kg" type="text" inputmode="numeric" value="${r.kg!=null?Math.round(r.kg*1000):''}" placeholder="4250"></label>
         <label class="field">Length (cm)<input id="s-cm" name="cm" type="text" inputmode="decimal" value="${r.cm??''}" placeholder="55.5"></label>
         <label class="field">Head (cm)<input id="s-head" name="head" type="text" inputmode="decimal" value="${r.head??''}" placeholder="38"></label></div>
       <label class="field">Note<textarea id="s-note" name="note" placeholder="e.g. weighed at the consultatiebureau, after a feed">${esc(r.note)}</textarea></label>
@@ -673,7 +681,8 @@ async function submitSheet(f){
     if(k==='bottle'||k==='formula'){const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}}
   else if(kind==='pump'){data={type:'pump',side:fd.get('side')||'both',t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};const mn=numOrNull(fd.get('min'));if(mn!=null)data.min=Math.round(mn);const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}
   else if(kind==='diaper'){const k=fd.get('kind');data={type:'diaper',kind:k,t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};if(k!=='wet'&&fd.get('color'))data.color=fd.get('color')}
-  else{coll='growth';data={t:keyToMs(fd.get('date')),kg:numOrNull(fd.get('kg')),cm:numOrNull(fd.get('cm')),head:numOrNull(fd.get('head')),note:(fd.get('note')||'').trim()};
+  else{coll='growth';const gIn=numOrNull(String(fd.get('kg')||'').replace(/[\s.](?=\d{3}\b)/g,''));const kgv=gIn==null?null:Math.round((gIn<30?gIn*1000:gIn))/1000;
+    data={t:keyToMs(fd.get('date')),kg:kgv,cm:numOrNull(fd.get('cm')),head:numOrNull(fd.get('head')),note:(fd.get('note')||'').trim()};
     if(data.kg==null&&data.cm==null&&data.head==null){toast('Enter at least one measurement.');return}}
   closeSheet();const isNew=!f.dataset.id;
   const ok=await guarded(()=>saveRow(coll,id,data),f.dataset.id?'Saved':kind==='growth'?'Measurement saved':kind==='feed'?'Feed logged':kind==='pump'?'Pumping session logged':'Diaper logged');
@@ -700,6 +709,9 @@ document.addEventListener('click',async ev=>{
   if(t.hasAttribute('data-more')){S.historyDays+=14;render();return}
   if(t.dataset.editEv){const e=S.events.find(x=>x.id===t.dataset.editEv);if(e)openSheet(e.type,e);return}
   if(t.dataset.edit){const g=S.growth.find(x=>x.id===t.dataset.edit);if(g)openSheet('growth',g);return}
+  if(t.dataset.editG){const g=S.growth.find(x=>x.id===t.dataset.editG);if(g)openSheet('growth',g);return}
+  if(t.dataset.delG){if(!t.dataset.armed){t.dataset.armed='1';t.textContent='Tap again to delete';t.classList.add('danger-armed');setTimeout(()=>{if(t.isConnected){delete t.dataset.armed;t.textContent='Delete';t.classList.remove('danger-armed')}},4000);return}
+    const id=t.dataset.delG;await guarded(()=>removeRow('growth',id),'Measurement deleted');return}
   if(t.dataset.quick){const q=t.dataset.quick;const id=uid();
     const data=q==='breast'?{type:'feed',kind:'breast',side:nextSide(),t:Date.now(),note:''}:{type:'diaper',kind:q,t:Date.now(),note:''};
     const ok=await guarded(()=>saveRow('events',id,data),q==='breast'?`${SIDE[data.side]} breast feed logged`:`${DIAPER[q]} diaper logged`,()=>guarded(()=>removeRow('events',id),'Removed'));if(ok&&q==='breast')afterLog('feed',data.t);return}
