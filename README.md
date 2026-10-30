@@ -14,12 +14,8 @@ Go to **dash.cloudflare.com** and sign up. You don't need a credit card or your 
 
 The app creates its own tables the first time it runs.
 
-## 3. Put the database ID in the repository
-1. On GitHub, open `wrangler.toml` in this repository and click the pencil icon to edit it.
-2. Replace `REPLACE_WITH_YOUR_DATABASE_ID` with the ID you copied.
-3. Click **Commit changes**.
-
-You can also send the ID to Claude, and it will make this change for you.
+## 3. Database ID
+Already done. The ID is in `wrangler.toml`. If you ever recreate the database, put the new ID there.
 
 ## 4. Connect the repository to Cloudflare
 1. In Cloudflare open **Workers & Pages → Create → Import a repository**.

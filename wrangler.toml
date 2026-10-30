@@ -10,7 +10,7 @@ command = "node scripts/build.mjs"
 [[d1_databases]]
 binding = "DB"
 database_name = "baby-care-log"
-database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+database_id = "cad56037-7f4b-4310-bb54-a5500aa80028"
 
 # Checks for due feed and pumping reminders every minute.
 [triggers]
