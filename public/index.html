@@ -90,6 +90,14 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .c-pump{background:var(--pump)} .c-feed{background:var(--feed)} .c-wet{background:var(--wet)} .c-dirty{background:var(--dirty)} .c-both{background:linear-gradient(90deg,var(--wet) 50%,var(--dirty) 50%)}
 .dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
 .dayhead .tot{font-size:12.5px;color:var(--muted)}
+.filters{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4;background:var(--bg);padding-block:4px 8px;box-shadow:0 -10px 0 var(--bg)}
+.filters .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.ov{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 6px}
+.ov div{background:var(--surface-2);border-radius:12px;padding:9px 10px;min-width:0}
+.ov b{display:block;font-family:var(--f-display);font-size:19px;line-height:1.15;font-variant-numeric:tabular-nums}
+.ov span{font-size:11.5px;color:var(--muted);display:block}
+.ov .k-feed b{color:var(--feed)} .ov .k-wet b{color:var(--wet)} .ov .k-dirty b{color:var(--dirty)} .ov .k-pump b{color:var(--pump)}
+@media (max-width:360px){.ov{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -215,7 +223,7 @@ const WHO={
 // ---------- state ----------
 const REM_DEFAULT={feed:{auto:false,hours:3},pump:{auto:false,hours:3},due:{feed:null,pump:null}};
 const mergeRem=d=>({feed:{...REM_DEFAULT.feed,...((d&&d.feed)||{})},pump:{...REM_DEFAULT.pump,...((d&&d.pump)||{})},due:{feed:null,pump:null,...((d&&d.due)||{})},tz:(d&&d.tz)||undefined});
-const S={rem:mergeRem(null),profile:{},events:[],growth:[],tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
+const S={hFilter:'all',rem:mergeRem(null),profile:{},events:[],growth:[],tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
 const LS='babycarelog.app.v1',LSK='babycarelog.key',LSM='babycarelog.member',LSF='babycarelog.family';
 const AUTH={key:null,member:'',family:'',status:null,error:''};
 try{AUTH.key=localStorage.getItem(LSK);AUTH.member=localStorage.getItem(LSM)||'';AUTH.family=localStorage.getItem(LSF)||''}catch(e){}
@@ -463,12 +471,12 @@ function intake(list){
   return{ml:exp+form,exp,form,bottles:f.filter(e=>(e.kind==='bottle'||e.kind==='formula')&&e.ml).length,breast:f.filter(e=>e.kind==='breast').length};
 }
 function renderIntakeCard(){
-  const now=Date.now();const r=intake(S.events.filter(e=>e.t>now-DAY&&e.t<=now));
+  const tk=dayKey(Date.now());const r=intake(S.events.filter(e=>dayKey(e.t)===tk));
   const parts=[];if(r.exp)parts.push(`expressed ${r.exp} ml`);if(r.form)parts.push(`formula ${r.form} ml`);
   const avg=r.bottles?Math.round(r.ml/r.bottles):0;
-  return `<section class="card"><p class="eyebrow">Milk in the last 24 hours</p>
+  return `<section class="card"><p class="eyebrow">Milk today</p>
     <div class="row-between" style="align-items:baseline"><div class="status"><div class="big num" style="color:var(--feed)">${r.ml} ml</div></div>${r.bottles?`<span class="sub num" style="color:var(--muted);font-size:14px">${r.bottles} bottle feeds · avg ${avg} ml</span>`:''}</div>
-    <p class="footnote">${parts.length?parts.join(' · ')+'. ':''}${r.breast?`Plus ${r.breast} breast feed${r.breast>1?'s':''}, which can't be measured in ml.`:r.ml?'':'Bottle feeds with an amount in ml add up here.'}</p></section>`;
+    <p class="footnote">${parts.length?parts.join(' · ')+'. ':''}${r.breast?`Plus ${r.breast} breast feed${r.breast>1?'s':''}, which can't be measured in ml.`:r.ml?'':'Bottle feeds with an amount in ml add up here.'} Counts from midnight.</p></section>`;
 }
 function intakeChart(){
   const days=[];for(let i=13;i>=0;i--){const k=dayKey(Date.now()-i*DAY);days.push({k,...intake(S.events.filter(e=>dayKey(e.t)===k))})}
@@ -537,18 +545,51 @@ function barsChart(){
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Feeds and wet diapers per day, last 14 days">${g}</svg>`;
 }
+const HF={all:'All',feed:'Feeds',diaper:'Diapers',pump:'Pumping'};
+function feedGap(list){
+  const ts=list.filter(e=>e.type==='feed').map(e=>e.t).sort((a,b)=>a-b);if(ts.length<2)return null;
+  return (ts[ts.length-1]-ts[0])/(ts.length-1);
+}
+function dayOverview(list,f){
+  const t=dayTotals(list);const r=intake(list);const g=feedGap(list);
+  const breast=list.filter(e=>e.type==='feed'&&e.kind==='breast');const bmin=breast.reduce((s,e)=>s+(+e.min||0),0);
+  const tile=(cls,big,label)=>`<div class="${cls}"><b>${big}</b><span>${label}</span></div>`;
+  const tiles=[];
+  if(f==='all'||f==='feed'){
+    tiles.push(tile('k-feed',t.feeds,t.feeds===1?'feed':'feeds'));
+    tiles.push(tile('k-feed',r.ml+' ml',r.bottles?`milk · ${r.bottles} bottle${r.bottles>1?'s':''}`:'milk from bottles'));
+    tiles.push(tile('k-feed',breast.length,`breast${bmin?' · '+bmin+' min':''}`));
+    if(f==='feed'){
+      if(r.exp||r.form)tiles.push(tile('k-feed',r.exp+' ml',`expressed${r.form?' · formula '+r.form+' ml':''}`));
+      tiles.push(tile('k-feed',g?fmtDur(g):'–','between feeds (avg)'));
+    }
+  }
+  if(f==='all'||f==='diaper'){tiles.push(tile('k-wet',t.wet,'wet'));tiles.push(tile('k-dirty',t.dirty,'dirty'))}
+  if(f==='diaper'){const d=list.filter(e=>e.type==='diaper').map(e=>e.t).sort((a,b)=>b-a);tiles.push(tile('k-wet',d.length,'changes'))}
+  if(f==='all'||f==='pump'){
+    if(f==='pump'||t.pumps)tiles.push(tile('k-pump',t.pumped+' ml',`pumped · ${t.pumps} session${t.pumps===1?'':'s'}`));
+    if(f==='pump'){const pm=list.filter(e=>e.type==='pump').reduce((s,e)=>s+(+e.min||0),0);tiles.push(tile('k-pump',pm?pm+' min':'–','pumping time'));tiles.push(tile('k-pump',t.pumps?Math.round(t.pumped/t.pumps)+' ml':'–','per session'))}
+  }
+  return `<div class="ov">${tiles.join('')}</div>`;
+}
 function renderHistory(){
-  const keys=[];const by={};S.events.forEach(e=>{const k=dayKey(e.t);if(!by[k]){by[k]=[];keys.push(k)}by[k].push(e)});
-  const shown=keys.slice(0,S.historyDays);
-  return `<section class="card"><p class="eyebrow">Last 14 days</p><h2>Feeds and wet diapers per day</h2>
+  const f=S.hFilter;const match=e=>f==='all'||e.type===f;
+  const keys=[];const all={};S.events.forEach(e=>{const k=dayKey(e.t);if(!all[k]){all[k]=[];keys.push(k)}all[k].push(e)});
+  const fkeys=keys.filter(k=>all[k].some(match));const shown=fkeys.slice(0,S.historyDays);
+  const filters=`<div class="filters" role="group" aria-label="Show">${Object.entries(HF).map(([k,l])=>`<button class="chip" data-hfilter="${k}" aria-pressed="${k===f}">${l}</button>`).join('')}</div>`;
+  const bars=`<section class="card"><p class="eyebrow">Last 14 days</p><h2>Feeds and wet diapers per day</h2>
     <div class="legend"><span><i style="background:var(--feed)"></i>Feeds</span><span><i style="background:var(--wet)"></i>Wet diapers</span></div>
-    <div class="chart-wrap">${barsChart()}</div></section>
-  ${(()=>{const c=intakeChart();return `<section class="card"><p class="eyebrow">Last 14 days</p><h2>Milk per day (ml)</h2>
+    <div class="chart-wrap">${barsChart()}</div></section>`;
+  const milk=(()=>{const c=intakeChart();return `<section class="card"><p class="eyebrow">Last 14 days</p><h2>Milk per day (ml)</h2>
     <div class="legend"><span><i style="background:var(--feed)"></i>Expressed milk</span><span><i style="background:var(--dirty)"></i>Formula</span>${c.avg?`<span><i style="background:none;border-top:2px dashed var(--muted);height:0;border-radius:0"></i>Average ${c.avg} ml/day</span>`:''}</div>
-    <div class="chart-wrap">${c.svg}</div><p class="footnote">Counts bottle feeds with an amount in ml, per calendar day. The average leaves out today because it isn't over yet. Breast feeds aren't measured in ml.</p></section>`})()}
-  ${shown.length?shown.map(k=>{const t=dayTotals(by[k]);return `<section class="card"><div class="dayhead"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${t.feeds} feeds${t.ml?' · '+t.ml+' ml':''} · ${t.wet} wet · ${t.dirty} dirty${t.pumps?' · pumped '+t.pumped+' ml':''}</span></div><div class="list">${by[k].map(itemHTML).join('')}</div></section>`}).join('')
-   :`<section class="card"><p class="empty">${S.loading?'Loading the log…':'No entries yet. Logged feeds and diapers appear here, grouped by day.'}</p></section>`}
-  ${keys.length>S.historyDays?`<button class="btn ghost more" data-more>Show earlier days</button>`:''}`;
+    <div class="chart-wrap">${c.svg}</div><p class="footnote">Counts bottle feeds with an amount in ml, per calendar day. The average leaves out today because it isn't over yet. Breast feeds aren't measured in ml.</p></section>`})();
+  const charts=f==='all'?milk+bars:f==='feed'?milk:f==='diaper'?bars:'';
+  const empty=S.loading?'Loading the log…':f==='all'?'No entries yet. Logged feeds, diapers and pumping sessions appear here, grouped by day.':`No ${HF[f].toLowerCase()} logged yet.`;
+  return `${filters}${charts}
+  ${shown.length?shown.map(k=>{const items=all[k].filter(match);return `<section class="card"><div class="dayhead"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${items.length} ${items.length===1?'entry':'entries'}</span></div>
+    ${dayOverview(all[k],f)}<div class="list">${items.map(itemHTML).join('')}</div></section>`}).join('')
+   :`<section class="card"><p class="empty">${empty}</p></section>`}
+  ${fkeys.length>S.historyDays?`<button class="btn ghost more" data-more>Show earlier days</button>`:''}`;
 }
 function niceStep(r){const raw=r/4;const p=Math.pow(10,Math.floor(Math.log10(raw)));const n=raw/p;return(n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p}
 const grams=kg=>Math.round(kg*1000).toLocaleString();
@@ -710,6 +751,7 @@ document.addEventListener('click',async ev=>{
   if(t.dataset.new){openSheet(t.dataset.new);return}
   if(t.hasAttribute('data-close')){closeSheet();return}
   if(t.dataset.metric){S.metric=t.dataset.metric;render();return}
+  if(t.dataset.hfilter){S.hFilter=t.dataset.hfilter;S.historyDays=7;render();return}
   if(t.hasAttribute('data-more')){S.historyDays+=14;render();return}
   if(t.dataset.editEv){const e=S.events.find(x=>x.id===t.dataset.editEv);if(e)openSheet(e.type,e);return}
   if(t.dataset.edit){const g=S.growth.find(x=>x.id===t.dataset.edit);if(g)openSheet('growth',g);return}
