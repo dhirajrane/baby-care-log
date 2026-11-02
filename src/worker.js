@@ -9,6 +9,10 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS events_type_t ON events(type, t)`,
   `CREATE TABLE IF NOT EXISTS growth (id TEXT PRIMARY KEY, t INTEGER NOT NULL, data TEXT NOT NULL, updated INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)`,
   `CREATE INDEX IF NOT EXISTS growth_updated ON growth(updated)`,
+  `CREATE TABLE IF NOT EXISTS appts (id TEXT PRIMARY KEY, t INTEGER NOT NULL, data TEXT NOT NULL, updated INTEGER NOT NULL, deleted INTEGER NOT NULL DEFAULT 0)`,
+  `CREATE INDEX IF NOT EXISTS appts_updated ON appts(updated)`,
+  `CREATE INDEX IF NOT EXISTS appts_t ON appts(t)`,
+  `CREATE TABLE IF NOT EXISTS sent (k TEXT PRIMARY KEY, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS subs (endpoint TEXT PRIMARY KEY, data TEXT NOT NULL, member TEXT, created INTEGER NOT NULL)`,
 ];
 const REM_DEFAULT = { feed: { auto: false, hours: 3 }, pump: { auto: false, hours: 3 }, due: { feed: null, pump: null }, tz: 'Europe/Amsterdam' };
@@ -120,7 +124,44 @@ async function runReminders(env, origin) {
     results[kind] = await pushAll(env, { title: `Time for the next ${KL[kind]}`, body, tag: 'rem-' + kind, kind, url: '/?log=' + kind }, origin);
   }
   if (changed) await kvSet(env, 'notified', notified);
+  results.appts = await runApptReminders(env, origin, rem.tz);
   return results;
+}
+
+const APPT_KIND = { midwife: 'Midwife', cb: 'Consultatiebureau', vaccination: 'Vaccination', doctor: 'Doctor', other: 'Appointment' };
+function leadText(min) {
+  if (min <= 0) return 'Now';
+  if (min < 60) return `In ${min} min`;
+  if (min < 24 * 60) return `In ${Math.round(min / 60)} hour${Math.round(min / 60) === 1 ? '' : 's'}`;
+  const d = Math.round(min / 1440);
+  return d === 1 ? 'Tomorrow' : `In ${d} days`;
+}
+function fmtDayTime(ms, tz) {
+  try { return new Date(ms).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: tz }); }
+  catch { return new Date(ms).toISOString().slice(0, 16).replace('T', ' '); }
+}
+async function runApptReminders(env, origin, tz) {
+  const now = Date.now();
+  const rows = (await env.DB.prepare('SELECT id, t, data FROM appts WHERE deleted = 0 AND t BETWEEN ? AND ?').bind(now - 2 * HOUR, now + 8 * 24 * HOUR).all()).results;
+  let sent = 0;
+  for (const r of rows) {
+    const a = JSON.parse(r.data);
+    if (a.planned) continue; // approximate dates (suggested schedule) don't notify until a real time is set
+    for (const off of (Array.isArray(a.remind) ? a.remind : [])) {
+      const min = Math.max(0, Math.min(10080, Number(off) || 0));
+      const fire = r.t - min * 60000;
+      if (fire > now || now - fire > 2 * HOUR) continue;
+      const key = `${r.id}:${r.t}:${min}`;
+      const done = await env.DB.prepare('INSERT INTO sent (k, at) VALUES (?, ?) ON CONFLICT(k) DO NOTHING').bind(key, now).run();
+      if (!done.meta || done.meta.changes === 0) continue;
+      const title = `${leadText(Math.round((r.t - now) / 60000) <= 1 ? 0 : min)}: ${a.title || APPT_KIND[a.kind] || 'Appointment'}`;
+      const body = [fmtDayTime(r.t, tz), a.place, a.note].filter(Boolean).join(' · ').slice(0, 220);
+      await pushAll(env, { title, body, tag: `appt-${r.id}-${min}`, url: '/?tab=calendar' }, origin);
+      sent++;
+    }
+  }
+  await env.DB.prepare('DELETE FROM sent WHERE at < ?').bind(now - 30 * 24 * HOUR).run();
+  return sent;
 }
 
 // ---------- API ----------
@@ -160,9 +201,10 @@ async function handleApi(req, env, url, ctx) {
     const since = Math.max(0, Number(url.searchParams.get('since')) || 0);
     const from = since ? since - 2000 : 0; // small overlap; rows are idempotent
     const now = Date.now();
-    const [ev, gr] = await Promise.all([
+    const [ev, gr, ap] = await Promise.all([
       env.DB.prepare('SELECT * FROM events WHERE updated > ? ORDER BY updated LIMIT 5000').bind(from).all(),
       env.DB.prepare('SELECT * FROM growth WHERE updated > ? ORDER BY updated LIMIT 5000').bind(from).all(),
+      env.DB.prepare('SELECT * FROM appts WHERE updated > ? ORDER BY updated LIMIT 5000').bind(from).all(),
     ]);
     return json({
       now,
@@ -171,10 +213,11 @@ async function handleApi(req, env, url, ctx) {
       rem: await getRem(env),
       events: ev.results.map(rowOut),
       growth: gr.results.map(rowOut),
+      appts: ap.results.map(rowOut),
     });
   }
 
-  let m = path.match(/^\/(events|growth)\/([A-Za-z0-9_-]{1,64})$/);
+  let m = path.match(/^\/(events|growth|appts)\/([A-Za-z0-9_-]{1,64})$/);
   if (m) {
     const [, table, id] = m;
     const now = Date.now();
@@ -195,6 +238,9 @@ async function handleApi(req, env, url, ctx) {
         isNew = !existing;
         await env.DB.prepare('INSERT INTO events (id, type, t, data, updated, deleted) VALUES (?, ?, ?, ?, ?, 0) ON CONFLICT(id) DO UPDATE SET type = excluded.type, t = excluded.t, data = excluded.data, updated = excluded.updated, deleted = 0')
           .bind(id, String(data.type || ''), t, str, now).run();
+      } else if (table === 'appts') {
+        await env.DB.prepare('INSERT INTO appts (id, t, data, updated, deleted) VALUES (?, ?, ?, ?, 0) ON CONFLICT(id) DO UPDATE SET t = excluded.t, data = excluded.data, updated = excluded.updated, deleted = 0')
+          .bind(id, t, str, now).run();
       } else {
         await env.DB.prepare('INSERT INTO growth (id, t, data, updated, deleted) VALUES (?, ?, ?, ?, 0) ON CONFLICT(id) DO UPDATE SET t = excluded.t, data = excluded.data, updated = excluded.updated, deleted = 0')
           .bind(id, t, str, now).run();
@@ -277,6 +323,12 @@ async function handleApi(req, env, url, ctx) {
       if (!g || !g.id || !isFinite(Number(g.t))) continue;
       const { id, ...d } = g;
       stmts.push(env.DB.prepare('INSERT INTO growth (id, t, data, updated, deleted) VALUES (?, ?, ?, ?, 0) ON CONFLICT(id) DO UPDATE SET t = excluded.t, data = excluded.data, updated = excluded.updated, deleted = 0')
+        .bind(String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || crypto.randomUUID(), Number(d.t), JSON.stringify(d), now));
+    }
+    for (const g of (Array.isArray(b.appts) ? b.appts : []).slice(0, 2000)) {
+      if (!g || !g.id || !isFinite(Number(g.t))) continue;
+      const { id, ...d } = g;
+      stmts.push(env.DB.prepare('INSERT INTO appts (id, t, data, updated, deleted) VALUES (?, ?, ?, ?, 0) ON CONFLICT(id) DO UPDATE SET t = excluded.t, data = excluded.data, updated = excluded.updated, deleted = 0')
         .bind(String(id).replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64) || crypto.randomUUID(), Number(d.t), JSON.stringify(d), now));
     }
     for (let i = 0; i < stmts.length; i += 100) await env.DB.batch(stmts.slice(i, i + 100));

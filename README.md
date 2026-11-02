@@ -38,6 +38,7 @@ The every-minute reminder check and the database connection come from `wrangler.
    - **Android:** in Chrome tap **⋮**, then **Add to Home screen** or **Install app**.
 4. In the app go to the **Baby** tab and tap **Turn on notifications**, then allow them. A test notification should arrive within a few seconds.
 5. In **Baby → Automatic reminders**, choose whether a reminder is set after every feed or pumping session and how many hours later.
+6. In **Calendar**, add midwife, consultatiebureau and doctor appointments, or add the expected Dutch vaccination dates from her birth date. Each appointment can remind the whole family a week, a day, 3 hours or 1 hour before, or at the time itself.
 
 When a reminder is due, every phone with notifications on gets an alert, even with the app closed. On Android the alert also has **Log feed** and **Snooze 15 min** buttons.
 
@@ -53,6 +54,7 @@ When a reminder is due, every phone with notifications on gets an alert, even wi
 npm install
 npm run dev      # local app at http://localhost:8787 with a local database
 npm test         # end-to-end checks against the local app (run while dev is running)
+node test/appts.mjs  # appointment reminder checks (fresh local database)
 npm run deploy   # deploy from your own machine (after: npx wrangler login)
 ```
 

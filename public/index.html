@@ -108,6 +108,25 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .suggest .why dt{font-weight:700;color:var(--muted);white-space:nowrap}
 .suggest .why dd{margin:0;min-width:0}
 @media (max-width:360px){.suggest .why{grid-template-columns:1fr}.suggest .why dd{margin-bottom:4px}}
+.appt{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:start;padding:12px 0;border-top:1px solid var(--line);width:100%;text-align:left;background:none;border-left:0;border-right:0;border-bottom:0}
+.appt:first-child{border-top:0}
+.appt .date{border-radius:12px;background:var(--surface-2);text-align:center;padding:6px 4px;line-height:1.1}
+.appt .date b{display:block;font-family:var(--f-display);font-size:20px}
+.appt .date span{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.appt .body{min-width:0}
+.appt .ttl{font-weight:700}
+.appt .meta{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.appt .when{font-size:12.5px;font-weight:700;white-space:nowrap;color:var(--muted);padding-top:2px}
+.appt .when.soon{color:var(--feed)}
+.kind{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 8px;border-radius:999px;margin-bottom:3px;background:var(--surface-2);color:var(--muted)}
+.kind.k-midwife{background:var(--feed-soft);color:var(--feed)} .kind.k-cb{background:var(--growth-soft);color:var(--growth)} .kind.k-vaccination{background:var(--wet-soft);color:var(--wet)} .kind.k-doctor{background:var(--dirty-soft);color:var(--dirty)}
+.planned{font-size:12px;color:var(--dirty);font-weight:600}
+.checks{display:flex;flex-wrap:wrap;gap:6px}
+.checks label{position:relative}
+.checks input{position:absolute;opacity:0;inset:0}
+.checks span{display:inline-block;padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface)}
+.checks input:checked + span{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.checks input:focus-visible + span{outline:2px solid var(--feed);outline-offset:2px}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -141,7 +160,7 @@ table.gt tr[data-edit]{cursor:pointer}
 
 /* tabs */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
-nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav.tabs .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
 nav.tabs button{border:0;background:none;padding:10px 4px 12px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600;color:var(--muted)}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs button[aria-current="page"]{color:var(--feed)}
@@ -197,6 +216,7 @@ nav.tabs button[aria-current="page"]{color:var(--feed)}
   <button data-tab="today" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Today</button>
   <button data-tab="history"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>History</button>
   <button data-tab="growth"><svg viewBox="0 0 24 24"><path d="M3 18c4-1 6-4 8-8s5-6 10-6"/><circle cx="21" cy="4" r="1.2"/></svg>Growth</button>
+  <button data-tab="calendar"><svg viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>Calendar</button>
   <button data-tab="baby"><svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="4.5"/><path d="M4.5 21c1.2-3.6 4-5.2 7.5-5.2s6.3 1.6 7.5 5.2"/></svg>Baby</button>
 </div></nav>
 <div id="sheet-root"></div>
@@ -233,14 +253,14 @@ const WHO={
 // ---------- state ----------
 const REM_DEFAULT={feed:{auto:false,hours:3},pump:{auto:false,hours:3},due:{feed:null,pump:null}};
 const mergeRem=d=>({feed:{...REM_DEFAULT.feed,...((d&&d.feed)||{})},pump:{...REM_DEFAULT.pump,...((d&&d.pump)||{})},due:{feed:null,pump:null,...((d&&d.due)||{})},tz:(d&&d.tz)||undefined});
-const S={hFilter:'all',rem:mergeRem(null),profile:{},events:[],growth:[],tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
+const S={hFilter:'all',rem:mergeRem(null),profile:{},events:[],growth:[],appts:[],showPast:false,tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
 const LS='babycarelog.app.v1',LSK='babycarelog.key',LSM='babycarelog.member',LSF='babycarelog.family';
 const AUTH={key:null,member:'',family:'',status:null,error:''};
 try{AUTH.key=localStorage.getItem(LSK);AUTH.member=localStorage.getItem(LSM)||'';AUTH.family=localStorage.getItem(LSF)||''}catch(e){}
 let outbox=[],since=0,flushing=false;
-const sortAll=()=>{S.events.sort((a,b)=>b.t-a.t);S.growth.sort((a,b)=>b.t-a.t)};
-function lsLoad(){try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d){S.profile=d.profile||{};S.events=d.events||[];S.growth=d.growth||[];S.rem=mergeRem(d.rem);since=d.since||0;outbox=d.outbox||[];sortAll();if(S.events.length||S.growth.length)S.loading=false}}catch(e){}}
-function lsSave(){try{localStorage.setItem(LS,JSON.stringify({profile:S.profile,events:S.events,growth:S.growth,rem:S.rem,since,outbox}))}catch(e){}}
+const sortAll=()=>{S.events.sort((a,b)=>b.t-a.t);S.growth.sort((a,b)=>b.t-a.t);S.appts.sort((a,b)=>a.t-b.t)};
+function lsLoad(){try{const d=JSON.parse(localStorage.getItem(LS)||'null');if(d){S.profile=d.profile||{};S.events=d.events||[];S.growth=d.growth||[];S.appts=d.appts||[];S.rem=mergeRem(d.rem);since=d.since||0;outbox=d.outbox||[];sortAll();if(S.events.length||S.growth.length)S.loading=false}}catch(e){}}
+function lsSave(){try{localStorage.setItem(LS,JSON.stringify({profile:S.profile,events:S.events,growth:S.growth,appts:S.appts,rem:S.rem,since,outbox}))}catch(e){}}
 const tz=()=>{try{return Intl.DateTimeFormat().resolvedOptions().timeZone}catch(e){return undefined}};
 
 async function api(path,opts={}){
@@ -272,8 +292,8 @@ async function pull(){
     await flush();
     if(outbox.length){S.loading=false;render();return}
     const d=await api('/sync?since='+since);
-    if(d.full){S.events=[];S.growth=[]}
-    mergeRows('events',d.events);mergeRows('growth',d.growth);
+    if(d.full){S.events=[];S.growth=[];S.appts=[]}
+    mergeRows('events',d.events);mergeRows('growth',d.growth);mergeRows('appts',d.appts||[]);
     S.profile=d.profile||{};S.rem=mergeRem(d.rem);since=d.now;S.loading=false;S.online=true;sortAll();lsSave();checkDue();render();
   }catch(e){if(e.code!=='auth'){S.online=false;S.loading=false;render()}}
   finally{pulling=false}
@@ -299,7 +319,7 @@ async function rememberKey(key){
   try{const c=await caches.open('babylog-key');await c.put('/__key',new Response(key))}catch(e){}
 }
 function signOut(msg){
-  AUTH.key=null;AUTH.error=msg||'';S.events=[];S.growth=[];S.profile={};S.rem=mergeRem(null);since=0;outbox=[];S.loading=true;
+  AUTH.key=null;AUTH.error=msg||'';S.events=[];S.growth=[];S.appts=[];S.profile={};S.rem=mergeRem(null);since=0;outbox=[];S.loading=true;
   try{localStorage.removeItem(LSK);localStorage.removeItem(LS)}catch(e){}
   try{caches.delete('babylog-key')}catch(e){}
   if(PUSH.sub){try{PUSH.sub.unsubscribe()}catch(e){}PUSH.sub=null}
@@ -565,6 +585,121 @@ function renderSuggestCard(){
     <div class="rem-btns" style="margin-top:10px"><button class="chip" data-suggest-rem="${Math.round(p.next)}">${due?'Remind me in 15 min':'Remind me at '+fmtTime(p.next)}</button></div>
     <p class="footnote">An estimate from Dutch guidance and her own pattern, not a rule. Feed when she shows hunger and stop when she's full. If you're unsure she's drinking enough, ask the consultatiebureau.</p></section>`;
 }
+// ---------- appointments ----------
+const AK={midwife:'Midwife',cb:'Consultatiebureau',vaccination:'Vaccination',doctor:'Doctor',other:'Other'};
+const AK_TITLE={midwife:'Midwife visit',cb:'Consultatiebureau check-up',vaccination:'Vaccination',doctor:'Doctor appointment',other:''};
+const REMIND_OPTS=[[10080,'1 week before'],[1440,'1 day before'],[180,'3 hours before'],[60,'1 hour before'],[0,'At the time']];
+const remindLabel=m=>m>=10080?'1 week':m>=1440?(m/1440)+' day'+(m>1440?'s':''):m>=60?(m/60)+' h':m>0?m+' min':'at the time';
+const startOfToday=()=>keyToMs(dayKey(Date.now()));
+function apptWhen(t){
+  const d=Math.round((keyToMs(dayKey(t))-startOfToday())/DAY);
+  if(d<0)return{txt:'Past',soon:false};
+  if(d===0)return{txt:t<Date.now()?'Earlier today':'Today',soon:true};
+  if(d===1)return{txt:'Tomorrow',soon:true};
+  if(d<7)return{txt:'In '+d+' days',soon:false};
+  if(d<14)return{txt:'Next week',soon:false};
+  if(d<60)return{txt:'In '+Math.round(d/7)+' weeks',soon:false};
+  if(d<700)return{txt:'In '+Math.round(d/30.4)+' months',soon:false};
+  return{txt:'In '+Math.round(d/365)+' years',soon:false};
+}
+function apptHTML(a,compact){
+  const d=new Date(a.t);const w=apptWhen(a.t);
+  const meta=[a.planned?d.toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'}):d.toLocaleDateString([], {weekday:'short'})+' '+fmtTime(a.t),a.place].filter(Boolean).map(esc).join(' · ');
+  const rem=(a.remind||[]).length?'Reminders: '+[...a.remind].sort((x,y)=>y-x).map(remindLabel).join(', ')+(a.remind.some(m=>m>0)?' before':''):'No reminders';
+  return `<button class="appt" data-edit-appt="${esc(a.id)}"><div class="date"><span>${d.toLocaleDateString([], {month:'short'})}</span><b class="num">${d.getDate()}</b></div>
+    <div class="body"><span class="kind k-${esc(a.kind||'other')}">${esc(AK[a.kind]||'Other')}</span><div class="ttl">${esc(a.title||AK_TITLE[a.kind]||'Appointment')}</div><div class="meta">${meta}</div>
+    ${a.planned?`<div class="planned">${compact?'Expected date':'Expected date. Update it when the invitation arrives.'}</div>`:`<div class="meta">${esc(rem)}</div>`}
+    ${a.note&&!compact?`<div class="meta">${esc(a.note)}</div>`:''}</div>
+    <span class="when ${w.soon?'soon':''}">${w.txt}</span></button>`;
+}
+function vaxPlan(){
+  if(!S.profile.birth)return[];
+  const b=new Date(keyToMs(S.profile.birth));const at=(months,weeks=0)=>{const d=new Date(b);d.setMonth(d.getMonth()+months);d.setDate(d.getDate()+weeks*7);d.setHours(9,0,0,0);return d.getTime()};
+  const items=[
+    {t:at(0,6),end:at(0,9),title:'Vaccination: rotavirus',note:'Age 6–9 weeks. Also DKTP-Hib-HepB if the mother was not vaccinated against whooping cough during pregnancy.'},
+    {t:at(3),title:'Vaccination: rotavirus, DKTP-Hib-HepB, pneumococcal',note:'Age 3 months.'},
+    {t:at(5),title:'Vaccination: DKTP-Hib-HepB, pneumococcal',note:'Age 5 months.'},
+    {t:at(12),title:'Vaccination: DKTP-Hib-HepB, pneumococcal',note:'Age 12 months.'},
+    {t:at(14),title:'Vaccination: BMR (MMR), MenACWY',note:'Age 14 months.'},
+    {t:at(36),title:'Vaccination: BMR (MMR)',note:'Age 3 years.'},
+  ];
+  const today=startOfToday();
+  return items.filter(i=>(i.end||i.t)>=today).map(i=>({...i,t:Math.max(i.t,today+DAY+9*36e5)}));
+}
+function renderComingUp(){
+  const now=Date.now();const soon=S.appts.filter(a=>a.t>=startOfToday()&&a.t<=now+7*DAY);
+  if(!soon.length)return '';
+  return `<section class="card"><div class="dayhead"><p class="eyebrow" style="margin:0">Coming up</p><button class="chip" data-tab="calendar" style="padding:5px 11px;font-size:12.5px">Calendar</button></div><div class="list">${soon.slice(0,2).map(a=>apptHTML(a,true)).join('')}</div></section>`;
+}
+function renderCalendar(){
+  const t0=startOfToday();const up=S.appts.filter(a=>a.t>=t0);const past=S.appts.filter(a=>a.t<t0).reverse();
+  const months={};up.forEach(a=>{const k=new Date(a.t).toLocaleDateString([], {month:'long',year:'numeric'});(months[k]=months[k]||[]).push(a)});
+  const hasVax=S.appts.some(a=>a.kind==='vaccination');const plan=vaxPlan();
+  const vaxCard=!hasVax?`<section class="card"><p class="eyebrow">Dutch vaccination schedule</p>
+    ${S.profile.birth?`<p style="margin:0">Add the expected dates from the Rijksvaccinatieprogramma, worked out from her birth date. They're marked as expected until you set the date from the GGD invitation, and reminders start once you do.</p>
+    <div style="margin-top:10px"><button class="btn" data-vax-plan ${plan.length?'':'disabled'}>Add ${plan.length} expected vaccination${plan.length===1?'':'s'}</button></div>
+    <p class="footnote">RSV immunisation depends on the month she was born, and the GGD contacts you about it. Check the dates in your invitation or at rijksvaccinatieprogramma.nl.</p>`
+    :`<p style="margin:0">Add her birth date under <b>Baby</b> to see the expected vaccination dates.</p>`}</section>`:'';
+  return `<section class="card"><div class="row-between"><h2>Appointments</h2><button class="btn" data-new-appt>Add appointment</button></div>
+    ${up.length?Object.entries(months).map(([m,list])=>`<p class="eyebrow" style="margin:16px 0 0">${esc(m)}</p><div class="list">${list.map(apptHTML).join('')}</div>`).join('')
+      :`<p class="empty" style="margin-top:10px">${S.loading?'Loading…':'No upcoming appointments. Add midwife visits, consultatiebureau check-ups and vaccinations here, and every family phone gets the reminders.'}</p>`}
+  </section>
+  ${vaxCard}
+  ${past.length?`<section class="card"><button class="chip" data-toggle-past>${S.showPast?'Hide':'Show'} past appointments (${past.length})</button>${S.showPast?`<div class="list" style="margin-top:8px">${past.map(apptHTML).join('')}</div>`:''}</section>`:''}`;
+}
+function openApptSheet(row){
+  const editing=!!(row&&row.id);const r=row||{kind:'cb',remind:[1440,60]};
+  const d=r.t?toLocalInput(r.t):'';const date=d.slice(0,10),time=d?d.slice(11,16):'09:00';
+  $('#sheet-root').innerHTML=`<div class="scrim" data-scrim><div class="sheet" role="dialog" aria-modal="true"><form id="f-appt" data-id="${esc(r.id||'')}" data-planned="${r.planned?1:''}" data-orig="${r.t||''}">
+    <div class="hd"><h2>${editing?'Edit appointment':'Add appointment'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
+    ${r.planned?`<p class="notice" style="margin:0">This is an expected date from the vaccination schedule. Change the date and time to match the GGD invitation, and reminders will start.</p>`:''}
+    <div class="field">Type${radios('kind',AK,r.kind||'cb')}</div>
+    <label class="field">Title<input id="a-title" name="title" value="${esc(r.title||AK_TITLE[r.kind||'cb'])}" placeholder="e.g. 8-week check-up" required maxlength="80"></label>
+    <div class="row2"><label class="field">Date<input id="a-date" name="date" type="date" value="${date}" required></label>
+      <label class="field">Time<input id="a-time" name="time" type="time" value="${time}" required></label></div>
+    <label class="field">Place<input id="a-place" name="place" value="${esc(r.place||'')}" placeholder="e.g. Consultatiebureau Centrum" maxlength="100"></label>
+    <label class="field">Notes<textarea id="a-note" name="note" placeholder="Questions to ask, things to bring">${esc(r.note||'')}</textarea></label>
+    <div class="field">Remind the family<div class="checks">${REMIND_OPTS.map(([m,l])=>`<label><input type="checkbox" name="remind" value="${m}" ${(r.remind||[]).includes(m)?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
+    <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del-appt>Delete</button><button type="button" class="btn ghost" data-ics>Add to phone calendar</button>`:''}<button class="btn" type="submit">${editing?'Save changes':'Save appointment'}</button></div>
+  </form></div></div>`;
+  const f=$('#f-appt');let lastKind=r.kind||'cb';
+  f.addEventListener('change',e=>{if(e.target.name==='kind'){const ti=$('#a-title');if(!ti.value||ti.value===AK_TITLE[lastKind])ti.value=AK_TITLE[e.target.value];lastKind=e.target.value}});
+}
+function apptFromForm(f){
+  const fd=new FormData(f);const t=new Date(fd.get('date')+'T'+(fd.get('time')||'09:00')).getTime();
+  return{kind:fd.get('kind')||'other',title:String(fd.get('title')||'').trim(),t,place:String(fd.get('place')||'').trim(),note:String(fd.get('note')||'').trim(),remind:fd.getAll('remind').map(Number).sort((a,b)=>b-a)};
+}
+function icsFor(a){
+  const z=ms=>new Date(ms).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const e=s=>String(s||'').replace(/\\/g,'\\\\').replace(/\n/g,'\\n').replace(/[,;]/g,m=>'\\'+m);
+  const L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Baby Care Log//EN','BEGIN:VEVENT','UID:'+a.id+'@babycarelog','DTSTAMP:'+z(Date.now()),'DTSTART:'+z(a.t),'DTEND:'+z(a.t+36e5),'SUMMARY:'+e(a.title||AK_TITLE[a.kind]||'Appointment')];
+  if(a.place)L.push('LOCATION:'+e(a.place));if(a.note)L.push('DESCRIPTION:'+e(a.note));
+  (a.remind||[]).forEach(m=>L.push('BEGIN:VALARM','ACTION:DISPLAY','DESCRIPTION:'+e(a.title||'Appointment'),'TRIGGER:-PT'+m+'M','END:VALARM'));
+  L.push('END:VEVENT','END:VCALENDAR');return L.join('\r\n');
+}
+document.addEventListener('click',async ev=>{
+  const t=ev.target.closest('button');if(!t)return;
+  if(t.hasAttribute('data-new-appt')){openApptSheet(null);return}
+  if(t.dataset.editAppt){const a=S.appts.find(x=>x.id===t.dataset.editAppt);if(a)openApptSheet(a);return}
+  if(t.hasAttribute('data-toggle-past')){S.showPast=!S.showPast;render();return}
+  if(t.hasAttribute('data-vax-plan')){
+    const plan=vaxPlan();for(const i of plan){await saveRow('appts',uid(),{kind:'vaccination',title:i.title,t:i.t,place:'',note:i.note,remind:[1440,60],planned:true})}
+    toast(`Added ${plan.length} expected vaccination dates`);return}
+  if(t.hasAttribute('data-del-appt')){
+    if(!t.dataset.armed){t.dataset.armed='1';t.textContent='Tap again to delete';return}
+    const id=$('#f-appt').dataset.id;closeSheet();await guarded(()=>removeRow('appts',id),'Appointment deleted');return}
+  if(t.hasAttribute('data-ics')){
+    const f=$('#f-appt');const a={...apptFromForm(f),id:f.dataset.id};
+    const blob=new Blob([icsFor(a)],{type:'text/calendar'});const l=document.createElement('a');l.href=URL.createObjectURL(blob);l.download=(a.title||'appointment').replace(/[^\w -]/g,'').slice(0,40)+'.ics';document.body.appendChild(l);l.click();setTimeout(()=>{URL.revokeObjectURL(l.href);l.remove()},1000);return}
+});
+document.addEventListener('submit',async ev=>{
+  const f=ev.target;if(f.id!=='f-appt')return;ev.preventDefault();
+  const a=apptFromForm(f);if(!isFinite(a.t)){toast('Pick a date and time.');return}
+  if(!a.title)a.title=AK_TITLE[a.kind]||'Appointment';
+  if(f.dataset.planned&&String(a.t)===f.dataset.orig)a.planned=true;
+  const id=f.dataset.id||uid();closeSheet();
+  await guarded(()=>saveRow('appts',id,a),f.dataset.id?'Appointment saved':`Added for ${new Date(a.t).toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'})} ${fmtTime(a.t)}`);
+});
 function renderToday(){
   const tk=dayKey(Date.now());const today=S.events.filter(e=>dayKey(e.t)===tk);const t=dayTotals(today);
   const last=feeds()[0];const ns=nextSide();
@@ -583,6 +718,7 @@ function renderToday(){
     ${lastD?`<p class="footnote">Last diaper <span data-ago="${lastD.t}">${ago(lastD.t)}</span> · ${esc(DIAPER[lastD.kind])}</p>`:''}
     ${lastP?`<p class="footnote">Last pumped <span data-ago="${lastP.t}">${ago(lastP.t)}</span>${t.pumps?` · ${t.pumps} today, ${t.pumped} ml`:''}</p>`:''}
   </section>
+  ${renderComingUp()}
   ${renderSuggestCard()}
   ${renderIntakeCard()}
   ${renderRemCard()}
@@ -736,7 +872,7 @@ function render(){
   const alerts=overdue.map(k=>`<div class="alert ${k}" role="alert"><div><b>Time for the next ${KL[k]}</b><div class="sub">Reminder was set for ${fmtTime(S.rem.due[k])}</div></div><div class="rem-btns"><button class="chip" data-new="${k}">Log ${k==='feed'?'feed':'pumping'}</button><button class="chip" data-snooze="${k}">+15 min</button><button class="chip" data-rem-clear="${k}">Dismiss</button></div></div>`).join('');
   $('#notice').innerHTML=alerts+(!S.online?`<div class="notice">Offline. New entries are kept on this phone${outbox.length?` (${outbox.length} waiting)`:''} and sync when you're back online.</div>`:'');
   const af=document.activeElement;if(S.tab==='baby'&&af&&af.closest&&af.closest('#view form'))return;
-  const v={today:renderToday,history:renderHistory,growth:renderGrowth,baby:renderBaby}[S.tab]();
+  const v={today:renderToday,history:renderHistory,growth:renderGrowth,calendar:renderCalendar,baby:renderBaby}[S.tab]();
   $('#view').innerHTML=v;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===S.tab?'page':'false'));
 }
@@ -873,15 +1009,15 @@ document.addEventListener('click',async ev=>{
   if(t.hasAttribute('data-signout')){if(!t.dataset.armed){t.dataset.armed='1';t.textContent='Tap again to sign out';return}signOut('');return}
   if(t.hasAttribute('data-copy-link')){const u=location.origin+'/';try{await navigator.clipboard.writeText(u);toast('Link copied. Send it with the family key.')}catch(e){toast(u)}return}
   if(t.hasAttribute('data-export')){
-    const blob=new Blob([JSON.stringify({exported:new Date().toISOString(),profile:S.profile,events:S.events,growth:S.growth},null,1)],{type:'application/json'});
+    const blob=new Blob([JSON.stringify({exported:new Date().toISOString(),profile:S.profile,events:S.events,growth:S.growth,appts:S.appts},null,1)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='baby-care-log-'+dayKey(Date.now())+'.json';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);return}
 });
 document.addEventListener('change',async ev=>{
   if(ev.target.id!=='imp'||!ev.target.files[0])return;
   try{
     const d=JSON.parse(await ev.target.files[0].text());
-    if(!Array.isArray(d.events)&&!Array.isArray(d.growth))throw 0;
-    const r=await api('/import',{method:'POST',body:{events:d.events||[],growth:d.growth||[],profile:d.profile&&d.profile.name&&!S.profile.name?d.profile:null}});
+    if(!Array.isArray(d.events)&&!Array.isArray(d.growth)&&!Array.isArray(d.appts))throw 0;
+    const r=await api('/import',{method:'POST',body:{events:d.events||[],growth:d.growth||[],appts:d.appts||[],profile:d.profile&&d.profile.name&&!S.profile.name?d.profile:null}});
     since=0;await pull();toast(`Imported ${r.imported} entries`);
   }catch(e){toast(e&&e.code==='offline'?'No connection. Try again when online.':"That file isn't a Baby Care Log export.")}
   ev.target.value='';
@@ -896,6 +1032,7 @@ lsLoad();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').then(()=>refreshPush()).catch(()=>{})}
 render();
 if(AUTH.key)pull();else loadStatus();
+(()=>{const tq=new URLSearchParams(location.search).get('tab');if(tq&&AUTH.key&&['today','history','growth','calendar','baby'].includes(tq)){history.replaceState(null,'','/');S.tab=tq;render()}})();
 (()=>{const q=new URLSearchParams(location.search).get('log');if(q&&AUTH.key&&(q==='feed'||q==='pump')){history.replaceState(null,'','/');setTimeout(()=>openSheet(q),250)}})();
 })();
 </script>
