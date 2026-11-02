@@ -46,7 +46,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 :focus-visible{outline:2px solid var(--feed);outline-offset:2px;border-radius:8px}
-.app{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(96px + env(safe-area-inset-bottom,0px))}
+.app{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(150px + env(safe-area-inset-bottom,0px))}
 header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:16px 10px;display:flex;align-items:baseline;justify-content:space-between;gap:12px}
 .top h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:-.01em;margin:0;line-height:1.1;text-wrap:balance}
 .top .age{color:var(--muted);font-size:13px;font-weight:500;white-space:nowrap}
@@ -127,6 +127,15 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .checks span{display:inline-block;padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface)}
 .checks input:checked + span{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .checks input:focus-visible + span{outline:2px solid var(--feed);outline-offset:2px}
+.logbar{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 8px 2px}
+nav.tabs .lb{border:0;border-radius:14px;padding:10px 6px;font-weight:700;font-size:15px;color:#fff;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;min-height:46px}
+nav.tabs .lb span{font-size:20px;line-height:1;font-weight:600}
+nav.tabs .lb.feed{background:var(--feed)} nav.tabs .lb.diaper{background:var(--wet)} nav.tabs .lb.pump{background:var(--pump)}
+:root[data-theme="dark"] nav.tabs .lb{color:#11141c}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) nav.tabs .lb{color:#11141c}}
+nav.tabs .lb:active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){nav.tabs .lb:active{transform:none}}
+.quick{margin-top:-4px}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -186,7 +195,7 @@ nav.tabs button[aria-current="page"]{color:var(--feed)}
 .form-actions{display:flex;gap:10px;justify-content:space-between;flex-wrap:wrap}
 .form-actions .btn:not(.danger){flex:1}
 
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--surface);border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;display:flex;gap:14px;align-items:center;max-width:calc(100% - 32px)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(140px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--ink);color:var(--surface);border-radius:12px;padding:10px 14px;font-size:14px;font-weight:600;display:flex;gap:14px;align-items:center;max-width:calc(100% - 32px)}
 .rem{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
 .rem:first-of-type{border-top:0}
 .rem b{font-weight:700}
@@ -212,7 +221,11 @@ nav.tabs button[aria-current="page"]{color:var(--feed)}
   <div id="notice"></div>
   <main id="view"></main>
 </div>
-<nav class="tabs" aria-label="Sections"><div class="in">
+<nav class="tabs" aria-label="Sections"><div class="logbar" role="group" aria-label="Log">
+  <button class="lb feed" data-new="feed"><span>+</span>Feed</button>
+  <button class="lb diaper" data-new="diaper"><span>+</span>Diaper</button>
+  <button class="lb pump" data-new="pump"><span>+</span>Pump</button>
+</div><div class="in">
   <button data-tab="today" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Today</button>
   <button data-tab="history"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>History</button>
   <button data-tab="growth"><svg viewBox="0 0 24 24"><path d="M3 18c4-1 6-4 8-8s5-6 10-6"/><circle cx="21" cy="4" r="1.2"/></svg>Growth</button>
@@ -704,7 +717,7 @@ function renderToday(){
   const tk=dayKey(Date.now());const today=S.events.filter(e=>dayKey(e.t)===tk);const t=dayTotals(today);
   const last=feeds()[0];const ns=nextSide();
   const status=last?`<div class="status"><p class="eyebrow">Last feed</p><div class="big num" data-ago="${last.t}">${ago(last.t)}</div><div class="sub">${fmtTime(last.t)} · ${esc(evTitle(last))}</div>${feeds().some(f=>f.kind==='breast')?`<div><span class="pill">Next breast: ${SIDE[ns]}</span></div>`:''}</div>`
-    :`<div class="status"><p class="eyebrow">Last feed</p><div class="big">No feeds yet</div><div class="sub">Tap <b>Log feed</b> after the next feed and it will show here.</div></div>`;
+    :`<div class="status"><p class="eyebrow">Last feed</p><div class="big">No feeds yet</div><div class="sub">Tap <b>+ Feed</b> at the bottom after the next feed and it will show here.</div></div>`;
   const lastD=diapers()[0];const lastP=S.events.find(e=>e.type==='pump');
   return `
   ${!S.profile.name&&!S.loading?`<section class="card setup"><h2>Start with her name and birth date</h2><p class="sub" style="margin:0;color:var(--muted)">Her age and the growth reference curves use these.</p><div><button class="btn" data-go="baby">Add details</button></div></section>`:''}
@@ -718,21 +731,16 @@ function renderToday(){
     ${lastD?`<p class="footnote">Last diaper <span data-ago="${lastD.t}">${ago(lastD.t)}</span> · ${esc(DIAPER[lastD.kind])}</p>`:''}
     ${lastP?`<p class="footnote">Last pumped <span data-ago="${lastP.t}">${ago(lastP.t)}</span>${t.pumps?` · ${t.pumps} today, ${t.pumped} ml`:''}</p>`:''}
   </section>
-  ${renderComingUp()}
-  ${renderSuggestCard()}
-  ${renderIntakeCard()}
-  ${renderRemCard()}
-  <section class="actions">
-    <button class="act feed" data-new="feed">Log feed<small>Breast, bottle or formula</small></button>
-    <button class="act diaper" data-new="diaper">Log diaper<small>Wet, dirty and notes</small></button>
-    <button class="act pump" data-new="pump">Log pumping session<small>Time, side and ml</small></button>
-  </section>
   <section class="quick" aria-label="One-tap logging">
     <button class="chip" data-quick="wet"><span class="dot c-wet"></span>Wet now</button>
     <button class="chip" data-quick="dirty"><span class="dot c-dirty"></span>Dirty now</button>
     <button class="chip" data-quick="both"><span class="dot c-both"></span>Both now</button>
     <button class="chip" data-quick="breast"><span class="dot c-feed"></span>${SIDE[ns]} breast now</button>
   </section>
+  ${renderComingUp()}
+  ${renderSuggestCard()}
+  ${renderIntakeCard()}
+  ${renderRemCard()}
   <section class="card"><div class="dayhead"><h2>Today</h2><span class="tot num">${today.length} entries</span></div>
     <div class="list">${today.length?today.map(itemHTML).join(''):`<p class="empty">${S.loading?'Loading the log…':'Nothing logged today yet.'}</p>`}</div>
   </section>`;
