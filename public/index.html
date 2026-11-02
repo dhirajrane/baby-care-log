@@ -98,6 +98,16 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .ov span{font-size:11.5px;color:var(--muted);display:block}
 .ov .k-feed b{color:var(--feed)} .ov .k-wet b{color:var(--wet)} .ov .k-dirty b{color:var(--dirty)} .ov .k-pump b{color:var(--pump)}
 @media (max-width:360px){.ov{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.suggest{border-color:var(--feed)}
+.sg-top{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sg-top>div{background:var(--surface-2);border-radius:14px;padding:10px 12px;min-width:0}
+.sg-top .lbl{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.sg-top b{display:block;font-family:var(--f-display);font-size:clamp(22px,6.5vw,28px);white-space:nowrap;line-height:1.15;margin:2px 0}
+.sg-top .sub{font-size:13px;color:var(--muted)}
+.suggest .why{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;margin:12px 0 0;font-size:13.5px;line-height:1.45}
+.suggest .why dt{font-weight:700;color:var(--muted);white-space:nowrap}
+.suggest .why dd{margin:0;min-width:0}
+@media (max-width:360px){.suggest .why{grid-template-columns:1fr}.suggest .why dd{margin-bottom:4px}}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -497,6 +507,64 @@ function intakeChart(){
 function itemHTML(e){
   return `<button class="item" data-edit-ev="${esc(e.id)}"><time>${fmtTime(e.t)}</time><span class="dot ${evDot(e)}"></span><span class="body"><span class="ttl">${esc(evTitle(e))}</span>${e.note?`<div class="note">${esc(e.note)}</div>`:''}${e.by?`<div class="by">${esc(e.by)}</div>`:''}</span></button>`;
 }
+// ---------- next feed suggestion ----------
+// Guide: about 150 ml per kg body weight per day (Voedingscentrum/GGD); ~10 feeds per 24 h as a newborn, ~6 around 6 months.
+function ageMonths(){if(!S.profile.birth)return null;const d=(Date.now()-keyToMs(S.profile.birth))/(30.4375*DAY);return d>=0?d:null}
+function latestWeight(){const g=S.growth.find(x=>x.kg!=null);return g?{kg:+g.kg,t:g.t}:null}
+function median(a){if(!a.length)return null;const b=[...a].sort((x,y)=>x-y);const m=b.length>>1;return b.length%2?b[m]:(b[m-1]+b[m])/2}
+function nextFeedPlan(){
+  const fs=feeds();if(!fs.length)return null;
+  const now=Date.now();const am=ageMonths();
+  const ageFeeds=am==null?8:Math.min(10,Math.max(6,10-am/6*4));
+  const ageGap=24*36e5/ageFeeds;
+  const recent=fs.filter(e=>e.t>now-2*DAY).map(e=>e.t).sort((a,b)=>a-b);
+  const gaps=[];for(let i=1;i<recent.length;i++){const g=recent[i]-recent[i-1];if(g>=45*60e3&&g<=8*36e5)gaps.push(g)}
+  let gap=ageGap,learned=false;
+  if(gaps.length>=4){gap=Math.min(ageGap*1.5,Math.max(ageGap*0.6,median(gaps)));learned=true}
+  const last=fs[0].t;const next=last+gap;
+  const plan={next,gap,learned,last,ageFeeds};
+  const w=latestWeight();if(!w)return plan;
+  const perKg=+S.profile.mlPerKg||150;const target=Math.round(w.kg*perKg);
+  const feedsPerDay=24*36e5/gap;const typical=target/feedsPerDay;
+  const at=Math.max(next,now);const tk=dayKey(at);const newDay=tk!==dayKey(now);const today=fs.filter(e=>dayKey(e.t)===tk);
+  const measured=today.reduce((s,e)=>s+((e.kind==='bottle'||e.kind==='formula')&&e.ml?+e.ml:0),0);
+  const unmeasured=today.filter(e=>e.kind==='breast'||((e.kind==='bottle'||e.kind==='formula')&&!e.ml)).length;
+  const counted=measured+Math.round(unmeasured*typical);
+  const midnight=keyToMs(tk)+DAY;
+  const left=Math.max(1,Math.floor((midnight-at)/gap)+1);
+  const bottles=fs.filter(e=>e.t>now-3*DAY&&(e.kind==='bottle'||e.kind==='formula')&&e.ml).map(e=>+e.ml);
+  const avg=bottles.length>=3?bottles.reduce((a,b)=>a+b,0)/bottles.length:null;
+  // Her own recent bottle size is the starting point; today's progress against the weight guide nudges it (up to +20%, down at most 10%).
+  const base=avg||typical;
+  const raw=(target-counted)/left;
+  const ml=Math.max(10,Math.round(Math.min(base*1.2,Math.max(base*0.9,raw))/10)*10);
+  Object.assign(plan,{ml,target,perKg,weight:w,typical:Math.round(typical/5)*5,measured,unmeasured,todayFeeds:today.length,left,reached:counted>=target,newDay,recentAvg:avg?Math.round(avg):null});
+  return plan;
+}
+function renderSuggestCard(){
+  const p=nextFeedPlan();
+  if(!p)return '';
+  const due=p.next<=Date.now();
+  const when=due?`<span class="pill">Due now</span>`:`<span data-due="${p.next}">${fmtIn(p.next)}</span>`;
+  const why=[];
+  why.push(['Rhythm',`${p.learned?'Her feeds over the last 2 days':'At her age, feeds'} come about every ${fmtDur(p.gap)}.`]);
+  if(p.ml){
+    why.push(['Daily guide',`${p.target} ml (${grams(p.weight.kg)} g × ${p.perKg} ml per kg).`]);
+    if(p.newDay)why.push(['New day',`This feed starts a new day, so the total begins again. About ${p.left} feeds that day.`]);
+    else why.push(['So far today',`${p.measured} ml in bottles${p.unmeasured?`, plus ${p.unmeasured} breast or unmeasured feed${p.unmeasured>1?'s':''} counted as about ${p.typical} ml each`:''}. About ${p.left} feed${p.left>1?'s':''} left today.`]);
+    if(p.reached&&!p.newDay)why.push(['Note',`She has reached today's guide amount. Offer more only if she seems hungry.`]);
+  }
+  const stale=p.weight&&Date.now()-p.weight.t>21*DAY;
+  return `<section class="card suggest"><p class="eyebrow">Suggested next feed</p>
+    <div class="sg-top">
+      <div><span class="lbl">Time</span><b class="num">${fmtTime(p.next)}</b><span class="sub">${when}</span></div>
+      <div><span class="lbl">Amount</span><b class="num" style="color:var(--feed)">${p.ml?'~'+p.ml+' ml':'–'}</b><span class="sub">${p.ml?(p.recentAvg?`her usual is ${p.recentAvg} ml`:'from her weight'):'add her weight'}</span></div>
+    </div>
+    <dl class="why">${why.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+    ${!p.weight?`<p class="footnote">Add her weight under <b>Growth</b> to get an amount suggestion.</p>`:stale?`<p class="footnote">Her last weight is from ${fmtDate(p.weight.t)}. Add a newer one in Growth for a better estimate.</p>`:''}
+    <div class="rem-btns" style="margin-top:10px"><button class="chip" data-suggest-rem="${Math.round(p.next)}">${due?'Remind me in 15 min':'Remind me at '+fmtTime(p.next)}</button></div>
+    <p class="footnote">An estimate from Dutch guidance and her own pattern, not a rule. Feed when she shows hunger and stop when she's full. If you're unsure she's drinking enough, ask the consultatiebureau.</p></section>`;
+}
 function renderToday(){
   const tk=dayKey(Date.now());const today=S.events.filter(e=>dayKey(e.t)===tk);const t=dayTotals(today);
   const last=feeds()[0];const ns=nextSide();
@@ -515,6 +583,7 @@ function renderToday(){
     ${lastD?`<p class="footnote">Last diaper <span data-ago="${lastD.t}">${ago(lastD.t)}</span> · ${esc(DIAPER[lastD.kind])}</p>`:''}
     ${lastP?`<p class="footnote">Last pumped <span data-ago="${lastP.t}">${ago(lastP.t)}</span>${t.pumps?` · ${t.pumps} today, ${t.pumped} ml`:''}</p>`:''}
   </section>
+  ${renderSuggestCard()}
   ${renderIntakeCard()}
   ${renderRemCard()}
   <section class="actions">
@@ -641,6 +710,8 @@ function renderBaby(){
     <h2>About her</h2>
     <label class="field">Name<input id="p-name" name="name" value="${esc(p.name)}" placeholder="Baby's name" autocomplete="off"></label>
     <label class="field">Birth date<input id="p-birth" name="birth" type="date" value="${esc(p.birth)}"></label>
+    <label class="field">Daily milk guide (ml per kg body weight)<input id="p-mlkg" name="mlPerKg" type="number" inputmode="numeric" min="100" max="200" step="5" value="${esc(p.mlPerKg||150)}"></label>
+    <p class="footnote" style="margin:-6px 0 0">Used for the next-feed amount. Dutch guidance is about 150. Change it only if your consultatiebureau advised a different amount.</p>
     <div class="field">Reference curves<div class="radios">${[['girl','Girl'],['boy','Boy']].map(([v,l])=>`<label><input type="radio" name="sex" value="${v}" ${(p.sex||'girl')===v?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
     <div><button class="btn" type="submit">Save details</button></div>
   </form></section>
@@ -751,6 +822,7 @@ document.addEventListener('click',async ev=>{
   if(t.dataset.new){openSheet(t.dataset.new);return}
   if(t.hasAttribute('data-close')){closeSheet();return}
   if(t.dataset.metric){S.metric=t.dataset.metric;render();return}
+  if(t.dataset.suggestRem){const at=Math.max(+t.dataset.suggestRem,Date.now()+15*60e3);S.rem.due.feed=at;await guarded(saveRem,`Feed reminder set for ${fmtTime(at)}`);render();return}
   if(t.dataset.hfilter){S.hFilter=t.dataset.hfilter;S.historyDays=7;render();return}
   if(t.hasAttribute('data-more')){S.historyDays+=14;render();return}
   if(t.dataset.editEv){const e=S.events.find(x=>x.id===t.dataset.editEv);if(e)openSheet(e.type,e);return}
@@ -785,7 +857,7 @@ document.addEventListener('submit',async ev=>{
     ['feed','pump'].forEach(k=>{if(S.rem[k].auto&&!was[k]&&!S.rem.due[k]){const last=S.events.find(e=>e.type===k);if(last&&last.t+S.rem[k].hours*36e5>Date.now())S.rem.due[k]=last.t+S.rem[k].hours*36e5}});
     document.activeElement&&document.activeElement.blur&&document.activeElement.blur();
     await guarded(saveRem,'Reminders saved');render();return}
-  if(f.id==='f-profile'){const fd=new FormData(f);await guarded(()=>saveProfile({name:(fd.get('name')||'').trim(),birth:fd.get('birth')||'',sex:fd.get('sex')||'girl'}),'Details saved')}
+  if(f.id==='f-profile'){const fd=new FormData(f);await guarded(()=>saveProfile({name:(fd.get('name')||'').trim(),birth:fd.get('birth')||'',sex:fd.get('sex')||'girl',mlPerKg:Math.min(200,Math.max(100,numOrNull(fd.get('mlPerKg'))||150))}),'Details saved')}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 setInterval(()=>{document.querySelectorAll('[data-ago]').forEach(el=>{el.textContent=ago(+el.dataset.ago)});checkDue()},20000);

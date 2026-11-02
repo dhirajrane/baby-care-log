@@ -215,7 +215,8 @@ async function handleApi(req, env, url, ctx) {
 
   if (path === '/profile' && method === 'PUT') {
     const b = await readBody(req);
-    await kvSet(env, 'profile', { name: String(b.name || '').slice(0, 60), birth: String(b.birth || '').slice(0, 10), sex: b.sex === 'boy' ? 'boy' : 'girl' });
+    const mlPerKg = Number(b.mlPerKg);
+    await kvSet(env, 'profile', { name: String(b.name || '').slice(0, 60), birth: String(b.birth || '').slice(0, 10), sex: b.sex === 'boy' ? 'boy' : 'girl', mlPerKg: mlPerKg >= 100 && mlPerKg <= 200 ? Math.round(mlPerKg) : 150 });
     return json({ ok: true });
   }
   if (path === '/reminders' && method === 'PUT') {
