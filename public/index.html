@@ -90,6 +90,13 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .c-pump{background:var(--pump)} .c-feed{background:var(--feed)} .c-wet{background:var(--wet)} .c-dirty{background:var(--dirty)} .c-both{background:linear-gradient(90deg,var(--wet) 50%,var(--dirty) 50%)}
 .dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
 .dayhead .tot{font-size:12.5px;color:var(--muted)}
+.dtoggle{width:100%;background:none;border:0;padding:0;text-align:left;color:inherit;cursor:pointer;align-items:center}
+.dtoggle .tot{display:inline-flex;align-items:center;gap:4px}
+.chev{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .2s}
+.day.open .chev{transform:rotate(180deg)}
+.daymore{width:100%;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:9px;font-weight:600;font-size:14px}
+.day.open .daymore{margin-top:4px}
+@media (prefers-reduced-motion:reduce){.chev{transition:none}}
 .filters{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4;background:var(--bg);padding-block:4px 8px;box-shadow:0 -10px 0 var(--bg)}
 .filters .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .ov{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 6px}
@@ -266,7 +273,7 @@ const WHO={
 // ---------- state ----------
 const REM_DEFAULT={feed:{auto:false,hours:3},pump:{auto:false,hours:3},due:{feed:null,pump:null}};
 const mergeRem=d=>({feed:{...REM_DEFAULT.feed,...((d&&d.feed)||{})},pump:{...REM_DEFAULT.pump,...((d&&d.pump)||{})},due:{feed:null,pump:null,...((d&&d.due)||{})},tz:(d&&d.tz)||undefined});
-const S={hFilter:'all',rem:mergeRem(null),profile:{},events:[],growth:[],appts:[],showPast:false,tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
+const S={openDays:new Set(),hFilter:'all',rem:mergeRem(null),profile:{},events:[],growth:[],appts:[],showPast:false,tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
 const LS='babycarelog.app.v1',LSK='babycarelog.key',LSM='babycarelog.member',LSF='babycarelog.family';
 const AUTH={key:null,member:'',family:'',status:null,error:''};
 try{AUTH.key=localStorage.getItem(LSK);AUTH.member=localStorage.getItem(LSM)||'';AUTH.family=localStorage.getItem(LSF)||''}catch(e){}
@@ -799,8 +806,11 @@ function renderHistory(){
   const charts=f==='all'?milk+bars:f==='feed'?milk:f==='diaper'?bars:'';
   const empty=S.loading?'Loading the log…':f==='all'?'No entries yet. Logged feeds, diapers and pumping sessions appear here, grouped by day.':`No ${HF[f].toLowerCase()} logged yet.`;
   return `${filters}${charts}
-  ${shown.length?shown.map(k=>{const items=all[k].filter(match);return `<section class="card"><div class="dayhead"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${items.length} ${items.length===1?'entry':'entries'}</span></div>
-    ${dayOverview(all[k],f)}<div class="list">${items.map(itemHTML).join('')}</div></section>`}).join('')
+  ${shown.length?shown.map(k=>{const items=all[k].filter(match);const open=S.openDays.has(k);const n=`${items.length} ${items.length===1?'entry':'entries'}`;
+    return `<section class="card day ${open?'open':''}"><button class="dayhead dtoggle" data-day="${k}" aria-expanded="${open}"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${n}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
+    ${dayOverview(all[k],f)}
+    ${open?`<div class="list">${items.map(itemHTML).join('')}</div>`:''}
+    <button class="daymore" data-day="${k}" aria-expanded="${open}">${open?'Hide log':'Show '+n}</button></section>`}).join('')
    :`<section class="card"><p class="empty">${empty}</p></section>`}
   ${fkeys.length>S.historyDays?`<button class="btn ghost more" data-more>Show earlier days</button>`:''}`;
 }
@@ -967,6 +977,8 @@ document.addEventListener('click',async ev=>{
   if(t.hasAttribute('data-close')){closeSheet();return}
   if(t.dataset.metric){S.metric=t.dataset.metric;render();return}
   if(t.dataset.suggestRem){const at=Math.max(+t.dataset.suggestRem,Date.now()+15*60e3);S.rem.due.feed=at;await guarded(saveRem,`Feed reminder set for ${fmtTime(at)}`);render();return}
+  if(t.dataset.day){const k=t.dataset.day;const was=S.openDays.has(k);if(was)S.openDays.delete(k);else S.openDays.add(k);render();
+    if(was){const c=document.querySelector(`.dtoggle[data-day="${k}"]`);if(c&&c.getBoundingClientRect().top<0)c.scrollIntoView({block:'start'})}return}
   if(t.dataset.hfilter){S.hFilter=t.dataset.hfilter;S.historyDays=7;render();return}
   if(t.hasAttribute('data-more')){S.historyDays+=14;render();return}
   if(t.dataset.editEv){const e=S.events.find(x=>x.id===t.dataset.editEv);if(e)openSheet(e.type,e);return}
