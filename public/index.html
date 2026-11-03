@@ -746,7 +746,6 @@ function renderToday(){
   </section>
   ${renderComingUp()}
   ${renderSuggestCard()}
-  ${renderIntakeCard()}
   ${renderRemCard()}
   <section class="card"><div class="dayhead"><h2>Today</h2><span class="tot num">${today.length} entries</span></div>
     <div class="list">${today.length?today.map(itemHTML).join(''):`<p class="empty">${S.loading?'Loading the log…':'Nothing logged today yet.'}</p>`}</div>
