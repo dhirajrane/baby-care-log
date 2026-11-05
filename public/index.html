@@ -143,6 +143,11 @@ nav.tabs .lb.feed{background:var(--feed)} nav.tabs .lb.diaper{background:var(--w
 nav.tabs .lb:active{transform:scale(.97)}
 @media (prefers-reduced-motion:reduce){nav.tabs .lb:active{transform:none}}
 .quick{margin-top:-4px}
+.tflag{font-size:12.5px;font-weight:700;margin-top:2px}
+.tflag.hot{color:var(--danger)} .tflag.low{color:var(--wet)}
+.ov .k-hot b{color:var(--danger)}
+.alert.hot{background:var(--surface);border-color:var(--danger)}
+.alert.hot b{color:var(--danger)}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -273,7 +278,7 @@ const WHO={
 // ---------- state ----------
 const REM_DEFAULT={feed:{auto:false,hours:3},pump:{auto:false,hours:3},due:{feed:null,pump:null}};
 const mergeRem=d=>({feed:{...REM_DEFAULT.feed,...((d&&d.feed)||{})},pump:{...REM_DEFAULT.pump,...((d&&d.pump)||{})},due:{feed:null,pump:null,...((d&&d.due)||{})},tz:(d&&d.tz)||undefined});
-const S={openDays:new Set(),hFilter:'all',rem:mergeRem(null),profile:{},events:[],growth:[],appts:[],showPast:false,tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
+const S={feverSeen:new Set((()=>{try{return JSON.parse(localStorage.getItem('babycarelog.feverSeen')||'[]')}catch(e){return[]}})()),openDays:new Set(),hFilter:'all',rem:mergeRem(null),profile:{},events:[],growth:[],appts:[],showPast:false,tab:'today',metric:'kg',historyDays:7,loading:true,online:true,devices:null};
 const LS='babycarelog.app.v1',LSK='babycarelog.key',LSM='babycarelog.member',LSF='babycarelog.family';
 const AUTH={key:null,member:'',family:'',status:null,error:''};
 try{AUTH.key=localStorage.getItem(LSK);AUTH.member=localStorage.getItem(LSM)||'';AUTH.family=localStorage.getItem(LSF)||''}catch(e){}
@@ -504,7 +509,7 @@ function ageText(){
 function evTitle(e){
   if(e.type==='feed'){const p=[FEED[e.kind]||'Feed'];if(e.kind==='breast'&&e.side)p.push(SIDE[e.side]);if(e.min)p.push(e.min+' min');if(e.ml)p.push(e.ml+' ml');return p.join(' · ')}
   if(e.type==='pump'){const p=['Pumping'];if(e.side)p.push(SIDE[e.side]);if(e.min)p.push(e.min+' min');if(e.ml)p.push(e.ml+' ml');return p.join(' · ')}
-  const p=[DIAPER[e.kind]||'Diaper'];if((e.kind==='dirty'||e.kind==='both')&&e.color)p.push(e.color);return p.join(' · ');
+  const p=[DIAPER[e.kind]||'Diaper'];if((e.kind==='dirty'||e.kind==='both')&&e.color)p.push(e.color);if(e.temp!=null)p.push(fmtTemp(e.temp)+(e.tempSite&&e.tempSite!=='rectal'?' ('+TSITE[e.tempSite].toLowerCase()+')':''));return p.join(' · ');
 }
 const evDot=e=>e.type==='pump'?'c-pump':e.type==='feed'?'c-feed':e.kind==='wet'?'c-wet':e.kind==='dirty'?'c-dirty':'c-both';
 function dayTotals(list){
@@ -544,8 +549,12 @@ function intakeChart(){
   return {svg:`<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Milk per day in ml, last 14 days">${g}</svg>`,avg};
 }
 // ---------- render ----------
+const TSITE={rectal:'Rectal',armpit:'Armpit',ear:'Ear',forehead:'Forehead'};
+const fmtTemp=v=>(+v).toFixed(1)+' °C';
+function tempFlag(v){if(v==null)return null;if(v>=38)return{cls:'hot',txt:'Fever range: 38 °C or higher'};if(v<35.8)return{cls:'low',txt:'Below the normal range (35.8–37.5 °C)'};return null}
+const temps=()=>S.events.filter(e=>e.temp!=null);
 function itemHTML(e){
-  return `<button class="item" data-edit-ev="${esc(e.id)}"><time>${fmtTime(e.t)}</time><span class="dot ${evDot(e)}"></span><span class="body"><span class="ttl">${esc(evTitle(e))}</span>${e.note?`<div class="note">${esc(e.note)}</div>`:''}${e.by?`<div class="by">${esc(e.by)}</div>`:''}</span></button>`;
+  return `<button class="item" data-edit-ev="${esc(e.id)}"><time>${fmtTime(e.t)}</time><span class="dot ${evDot(e)}"></span><span class="body"><span class="ttl">${esc(evTitle(e))}</span>${tempFlag(e.temp)?`<div class="tflag ${tempFlag(e.temp).cls}">${tempFlag(e.temp).txt}</div>`:''}${e.note?`<div class="note">${esc(e.note)}</div>`:''}${e.by?`<div class="by">${esc(e.by)}</div>`:''}</span></button>`;
 }
 // ---------- next feed suggestion ----------
 // Guide: about 150 ml per kg body weight per day (Voedingscentrum/GGD); ~10 feeds per 24 h as a newborn, ~6 around 6 months.
@@ -735,6 +744,7 @@ function renderToday(){
       <div class="stat wet"><b class="num">${t.wet}</b><span>wet</span></div>
       <div class="stat dirty"><b class="num">${t.dirty}</b><span>dirty</span></div>
     </div>
+    ${(()=>{const lt=temps()[0];return lt?`<p class="footnote">Last temperature ${fmtTemp(lt.temp)} · <span data-ago="${lt.t}">${ago(lt.t)}</span>${lt.tempSite&&lt.tempSite!=='rectal'?' · '+TSITE[lt.tempSite].toLowerCase():''}</p>`:''})()}
     ${lastD?`<p class="footnote">Last diaper <span data-ago="${lastD.t}">${ago(lastD.t)}</span> · ${esc(DIAPER[lastD.kind])}</p>`:''}
     ${lastP?`<p class="footnote">Last pumped <span data-ago="${lastP.t}">${ago(lastP.t)}</span>${t.pumps?` · ${t.pumps} today, ${t.pumped} ml`:''}</p>`:''}
   </section>
@@ -784,7 +794,7 @@ function dayOverview(list,f){
     }
   }
   if(f==='all'||f==='diaper'){tiles.push(tile('k-wet',t.wet,'wet'));tiles.push(tile('k-dirty',t.dirty,'dirty'))}
-  if(f==='diaper'){const d=list.filter(e=>e.type==='diaper').map(e=>e.t).sort((a,b)=>b-a);tiles.push(tile('k-wet',d.length,'changes'))}
+  if(f==='diaper'){const d=list.filter(e=>e.type==='diaper');tiles.push(tile('k-wet',d.length,'changes'));const tv=d.filter(e=>e.temp!=null).map(e=>+e.temp);if(tv.length){tiles.push(tile(Math.max(...tv)>=38?'k-hot':'k-wet',fmtTemp(Math.max(...tv)),`highest temp · ${tv.length} reading${tv.length>1?'s':''}`))}}
   if(f==='all'||f==='pump'){
     if(f==='pump'||t.pumps)tiles.push(tile('k-pump',t.pumped+' ml',`pumped · ${t.pumps} session${t.pumps===1?'':'s'}`));
     if(f==='pump'){const pm=list.filter(e=>e.type==='pump').reduce((s,e)=>s+(+e.min||0),0);tiles.push(tile('k-pump',pm?pm+' min':'–','pumping time'));tiles.push(tile('k-pump',t.pumps?Math.round(t.pumped/t.pumps)+' ml':'–','per session'))}
@@ -887,7 +897,10 @@ function render(){
   $('#hd-age').textContent=ageText();
   const overdue=['feed','pump'].filter(k=>S.rem.due[k]&&S.rem.due[k]<=Date.now());
   const alerts=overdue.map(k=>`<div class="alert ${k}" role="alert"><div><b>Time for the next ${KL[k]}</b><div class="sub">Reminder was set for ${fmtTime(S.rem.due[k])}</div></div><div class="rem-btns"><button class="chip" data-new="${k}">Log ${k==='feed'?'feed':'pumping'}</button><button class="chip" data-snooze="${k}">+15 min</button><button class="chip" data-rem-clear="${k}">Dismiss</button></div></div>`).join('');
-  $('#notice').innerHTML=alerts+(!S.online?`<div class="notice">Offline. New entries are kept on this phone${outbox.length?` (${outbox.length} waiting)`:''} and sync when you're back online.</div>`:'');
+  const lt=temps()[0];let fever='';
+  if(lt&&lt.temp>=38&&Date.now()-lt.t<12*36e5&&!S.feverSeen.has(lt.id)){const am=ageMonths();
+    fever=`<div class="alert hot" role="alert"><div><b>${fmtTemp(lt.temp)} at ${fmtTime(lt.t)}</b><div class="sub">${am!=null&&am<3?'For a baby younger than 3 months, 38 °C or higher means a doctor should see her straight away. Call your huisarts, or the huisartsenpost outside office hours.':'38 °C or higher counts as fever. Call your huisarts if you are worried, or the huisartsenpost outside office hours.'}</div></div><div class="rem-btns"><button class="chip" data-fever-ok="${esc(lt.id)}">OK</button></div></div>`}
+  $('#notice').innerHTML=fever+alerts+(!S.online?`<div class="notice">Offline. New entries are kept on this phone${outbox.length?` (${outbox.length} waiting)`:''} and sync when you're back online.</div>`:'');
   const af=document.activeElement;if(S.tab==='baby'&&af&&af.closest&&af.closest('#view form'))return;
   const v={today:renderToday,history:renderHistory,growth:renderGrowth,calendar:renderCalendar,baby:renderBaby}[S.tab]();
   $('#view').innerHTML=v;
@@ -923,7 +936,9 @@ function openSheet(kind,row){
     html=`<form id="f-sheet" data-kind="diaper"><div class="hd"><h2>${editing?'Edit diaper':'Log a diaper'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
       <div class="field">Type${radios('kind',DIAPER,r.kind)}</div>
       <div class="field" data-for="dirty both">Stool colour${radios('color',Object.fromEntries(COLORS.map(c=>[c,c])),r.color||'')}</div>
-      <label class="field">Time<input id="s-t" name="t" type="datetime-local" value="${toLocalInput(r.t)}" required></label>
+      <div class="row2"><label class="field">Temperature (°C, optional)<input id="s-temp" name="temp" type="text" inputmode="decimal" value="${r.temp!=null?(+r.temp).toFixed(1):''}" placeholder="37.0"></label>
+        <label class="field">Time<input id="s-t" name="t" type="datetime-local" value="${toLocalInput(r.t)}" required></label></div>
+      <div class="field">Measured${radios('tempSite',TSITE,r.tempSite||'rectal')}</div>
       <label class="field">Description<textarea id="s-note" name="note" placeholder="e.g. very full, seedy texture, slight redness">${esc(r.note)}</textarea></label>
       <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del>Delete</button>`:''}<button class="btn" type="submit" style="background:var(--wet)">${editing?'Save changes':'Save diaper'}</button></div></form>`;
   } else {
@@ -949,7 +964,8 @@ async function submitSheet(f){
     if(k==='breast'||k==='bottle'||k==='formula'){const mn=numOrNull(fd.get('min'));if(mn!=null)data.min=Math.round(mn)}
     if(k==='bottle'||k==='formula'){const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}}
   else if(kind==='pump'){data={type:'pump',side:fd.get('side')||'both',t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};const mn=numOrNull(fd.get('min'));if(mn!=null)data.min=Math.round(mn);const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}
-  else if(kind==='diaper'){const k=fd.get('kind');data={type:'diaper',kind:k,t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};if(k!=='wet'&&fd.get('color'))data.color=fd.get('color')}
+  else if(kind==='diaper'){const k=fd.get('kind');data={type:'diaper',kind:k,t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};if(k!=='wet'&&fd.get('color'))data.color=fd.get('color');
+    const tv=numOrNull(fd.get('temp'));if(tv!=null){if(tv<30||tv>45){toast('Enter the temperature in °C, between 30 and 45.');return}data.temp=Math.round(tv*10)/10;data.tempSite=fd.get('tempSite')||'rectal'}}
   else{coll='growth';const gIn=numOrNull(String(fd.get('kg')||'').replace(/[\s.](?=\d{3}\b)/g,''));const kgv=gIn==null?null:Math.round((gIn<30?gIn*1000:gIn))/1000;
     data={t:keyToMs(fd.get('date')),kg:kgv,cm:numOrNull(fd.get('cm')),head:numOrNull(fd.get('head')),note:(fd.get('note')||'').trim()};
     if(data.kg==null&&data.cm==null&&data.head==null){toast('Enter at least one measurement.');return}}
@@ -976,6 +992,7 @@ document.addEventListener('click',async ev=>{
   if(t.hasAttribute('data-close')){closeSheet();return}
   if(t.dataset.metric){S.metric=t.dataset.metric;render();return}
   if(t.dataset.suggestRem){const at=Math.max(+t.dataset.suggestRem,Date.now()+15*60e3);S.rem.due.feed=at;await guarded(saveRem,`Feed reminder set for ${fmtTime(at)}`);render();return}
+  if(t.dataset.feverOk){S.feverSeen.add(t.dataset.feverOk);try{localStorage.setItem('babycarelog.feverSeen',JSON.stringify([...S.feverSeen].slice(-20)))}catch(e){}render();return}
   if(t.dataset.day){const k=t.dataset.day;const was=S.openDays.has(k);if(was)S.openDays.delete(k);else S.openDays.add(k);render();
     if(was){const c=document.querySelector(`.dtoggle[data-day="${k}"]`);if(c&&c.getBoundingClientRect().top<0)c.scrollIntoView({block:'start'})}return}
   if(t.dataset.hfilter){S.hFilter=t.dataset.hfilter;S.historyDays=7;render();return}
