@@ -151,6 +151,20 @@ nav.tabs .lb:active{transform:scale(.97)}
 .ov .k-hot b{color:var(--danger)}
 .alert.hot{background:var(--surface);border-color:var(--danger)}
 .alert.hot b{color:var(--danger)}
+.help p,.help li{font-size:14.5px;line-height:1.55}
+.help p{margin:8px 0}
+.help h3{font-family:var(--f-display);font-size:16px;margin:16px 0 4px}
+.help ul{margin:8px 0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
+.help a{color:var(--feed);font-weight:600;overflow-wrap:anywhere}
+.help .formula{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;background:var(--surface-2);border-radius:10px;padding:10px 12px;overflow-x:auto}
+.help .warn{background:var(--feed-soft);border-radius:12px;padding:10px 12px;font-size:14px}
+.help .note{color:var(--muted);font-size:13.5px}
+.help{scroll-margin-top:calc(env(safe-area-inset-top,0px) + 64px)}
+.toc{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.toc a{font-size:13px;font-weight:600;padding:6px 11px;border-radius:999px;border:1px solid var(--line);color:var(--ink);text-decoration:none;background:var(--surface)}
+.help-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.help-link{text-align:center;margin:4px 0 0}
+.linkbtn{border:0;background:none;padding:0;color:var(--feed);font-weight:700;text-decoration:underline;font-size:inherit}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -365,14 +379,16 @@ function renderLogin(){
     <label class="field">Family key<input id="l-key" name="key" type="password" minlength="6" required autocomplete="new-password" placeholder="At least 6 characters"></label>
     <label class="field">Your name<input id="l-member" name="member" required placeholder="Shown on entries you log" autocomplete="given-name"></label>
     <p class="login-err" id="l-err">${esc(AUTH.error)}</p>
-    <div><button class="btn" type="submit">Create family log</button></div></form></section>`;
+    <div><button class="btn" type="submit">Create family log</button></div></form></section>
+    <p class="help-link"><button class="chip" data-help>How does the app work?</button></p>`;
   return `<section class="card"><form id="f-login" class="setup">
     <h2>${st.family?'Join '+esc(st.family):'Sign in'}</h2>
     <p style="margin:0;color:var(--muted);font-size:14px">Enter the family key you were given.</p>
     <label class="field">Family key<input id="l-key" name="key" type="password" required autocomplete="current-password"></label>
     <label class="field">Your name<input id="l-member" name="member" required placeholder="Shown on entries you log" value="${esc(AUTH.member)}" autocomplete="given-name"></label>
     <p class="login-err" id="l-err">${esc(AUTH.error)}</p>
-    <div><button class="btn" type="submit">Sign in</button></div></form></section>`;
+    <div><button class="btn" type="submit">Sign in</button></div></form></section>
+    <p class="help-link"><button class="chip" data-help>How does the app work?</button></p>`;
 }
 async function submitLogin(f){
   const fd=new FormData(f);const key=String(fd.get('key')||'').trim();const member=String(fd.get('member')||'').trim();
@@ -646,7 +662,7 @@ function renderSuggestCard(){
     <dl class="why">${why.map(([k,v])=>`<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
     ${!p.weight?`<p class="footnote">Add her weight under <b>Growth</b> to get an amount and a daily guide.</p>`:stale?`<p class="footnote">Her last weight is from ${fmtDate(p.weight.t)}. Add a newer one in Growth for a better estimate.</p>`:''}
     <div class="rem-btns" style="margin-top:10px"><button class="chip" data-suggest-rem="${Math.round(p.next)}">${due?'Remind me in 15 min':'Remind me at '+fmtTime(p.next)}</button></div>
-    <p class="footnote">An estimate from Dutch guidance and her own pattern, not a rule. Feed when she shows hunger and stop when she's full. If you're unsure she's drinking enough, ask the consultatiebureau.</p></section>`;
+    <p class="footnote"><button class="linkbtn" data-help="feed">How is this worked out?</button> An estimate from Dutch guidance and her own pattern, not a rule. Feed when she shows hunger and stop when she's full. If you're unsure she's drinking enough, ask the consultatiebureau.</p></section>`;
 }
 // ---------- appointments ----------
 const AK={midwife:'Midwife',cb:'Consultatiebureau',vaccination:'Vaccination',doctor:'Doctor',other:'Other'};
@@ -901,6 +917,100 @@ function renderGrowth(){
     <div style="margin-top:12px">${growthChart(m)}</div></section>
   <section class="card"><p class="eyebrow">All measurements</p>${tbl}</section>`;
 }
+// ---------- How it works (readable without signing in) ----------
+const HELP_SRC={
+  voeding:['Voedingscentrum guidance on bottle feeding (via GGD Gooi en Vechtstreek)','https://www.ggdgv.nl/wp-content/uploads/sites/2/2024/04/flesvoeding-2023-1.pdf'],
+  who:['WHO Child Growth Standards','https://www.who.int/tools/child-growth-standards'],
+  rvp:['Rijksvaccinatieprogramma vaccination schedule','https://rijksvaccinatieprogramma.nl/sites/default/files/2026-02/Vaccination-schedule.pdf'],
+  fever:['Gezondheid en Wetenschap: Koorts bij een kind','https://gezondheidenwetenschap.be/richtlijnen/koorts-bij-een-kind'],
+};
+const src=k=>`<a href="${HELP_SRC[k][1]}" target="_blank" rel="noopener">${HELP_SRC[k][0]}</a>`;
+function renderHelp(){
+  const sec=(id,title,body)=>`<section class="card help" id="h-${id}"><h2>${title}</h2>${body}</section>`;
+  const toc=[['feed','Suggested next feed'],['milk','Milk totals'],['rem','Reminders'],['cal','Appointments and vaccinations'],['growth','Growth charts'],['temp','Temperature'],['data','Your data'],['src','Sources']];
+  return `<div class="help-top"><button class="chip" data-help-back>← Back</button><button class="chip" data-help-copy>Copy link to this page</button></div>
+  <section class="card help"><h2>How the app works</h2>
+    <p>Baby Care Log keeps a shared record of feeds, diapers, pumping, growth, temperature and appointments for a family. This page explains how each number and suggestion is worked out, so you know what to trust it for.</p>
+    <p class="warn">The app is a diary with helpful estimates. It is not medical advice. Follow your baby's hunger and fullness cues, and ask the consultatiebureau, huisarts or midwife if you're unsure.</p>
+    <nav class="toc" aria-label="On this page">${toc.map(([id,t])=>`<a href="#h-${id}" data-help-jump="h-${id}">${t}</a>`).join('')}</nav></section>
+
+  ${sec('feed','Suggested next feed',`
+    <p>The card on Today suggests when the next feed is likely and roughly how much to offer. It combines a general guideline based on weight with the baby's own logged pattern.</p>
+    <h3>1. Daily guide</h3>
+    <p class="formula">daily guide = latest weight × 150 ml per kg</p>
+    <p>For example, 4,800 g × 150 = 720 ml a day. Dutch guidance for bottle feeding uses about 150 ml per kg of body weight per day. You can change the number in <b>Baby → Daily milk guide</b> if your consultatiebureau gives a different figure. It's a guide, not a limit: some days babies drink more, especially during growth spurts.</p>
+    <h3>2. How much the baby drinks per hour</h3>
+    <p>For every measured bottle in the last 4 days that was followed by another feed, the app divides the amount by the hours until the next feed. The middle value (median) of those is the baby's drinking rate, for example 34 ml per hour. It needs at least 5 measured feeds.</p>
+    <p>The baby's own rate is combined with the guide rate (daily guide ÷ 24 hours). With few logged bottles the guide counts most. The baby's own pattern counts more with each measured feed and takes over completely after 10.</p>
+    <h3>3. Next feed time</h3>
+    <p class="formula">next feed = start of last feed + last amount ÷ drinking rate</p>
+    <p>So a bigger bottle pushes the next feed later: at 34 ml per hour, 120 ml lasts about 3½ hours and 60 ml about 1¾ hours.</p>
+    <ul>
+      <li>The gap is kept between <b>1.5 hours</b> and <b>1.5 × the usual gap for the baby's age</b>, so one odd feed can't give an unrealistic time. Babies feed about 10 times a day as newborns, falling to about 6 times by 6 months.</li>
+      <li>Feeds that start within 30 minutes of each other, such as a bottle and a top-up, count as one feed (up to 45 minutes from the first).</li>
+      <li>After a breast feed, or any feed without an amount, the app uses the baby's usual gap between feeds over the last 2 days instead, or the usual gap for the baby's age if there isn't enough data.</li>
+    </ul>
+    <h3>4. Amount for the next feed</h3>
+    <p><b>Typical feed:</b> the daily guide spread over the baby's feeds per day, averaged with the baby's recent measured bottles (last 3 days).</p>
+    <p class="formula">suggested amount = what's left of today's guide ÷ feeds left before midnight</p>
+    <ul>
+      <li>The result stays between <b>10% less</b> and <b>20% more</b> than the typical feed, so it never suggests a huge or tiny bottle just to reach a number.</li>
+      <li>Breast feeds and feeds without an amount count as one typical feed in today's total.</li>
+      <li>Once today's guide is reached, the card says so and suggests following the baby's cues.</li>
+      <li>If the next feed falls after midnight, a new day starts and the total begins again.</li>
+    </ul>
+    <p class="note">Weight comes from the latest measurement in Growth. If it's more than 3 weeks old, the card asks for a newer one. Without a weight, the card still suggests a time but no amount.</p>`)}
+
+  ${sec('milk','Milk totals',`
+    <ul>
+      <li><b>Per calendar day</b>, from midnight to midnight.</li>
+      <li>Only <b>bottle feeds with an amount</b> count in ml: expressed milk and formula. Breast feeds can't be measured, so they're counted separately as a number of feeds (with minutes, if logged).</li>
+      <li>In History, the 14-day milk chart shows expressed milk and formula stacked per day. The dashed average leaves out today, because the day isn't over yet.</li>
+      <li>"Between feeds (avg)" in History is the time from the first to the last feed of the day divided by the number of gaps.</li>
+    </ul>`)}
+
+  ${sec('rem','Reminders',`
+    <ul>
+      <li><b>Automatic:</b> when turned on in Baby, logging a feed or pumping session sets the next reminder that many hours after the <b>start time</b> of what you logged. Whoever logs it, the reminder is shared by the whole family.</li>
+      <li><b>One-off:</b> after a feed or pumping session you can pick 2, 2½, 3 or 4 hours, a custom number of hours, or an exact clock time. A time that has already passed today is set for tomorrow.</li>
+      <li><b>Suggested time:</b> "Remind me at …" on the Suggested next feed card sets a reminder for that time.</li>
+      <li>The server checks every minute and sends a notification to every phone that has notifications turned on, even when the app is closed. A reminder more than 2 hours late is skipped rather than sent.</li>
+      <li><b>Snooze</b> moves a reminder 15 minutes later.</li>
+    </ul>`)}
+
+  ${sec('cal','Appointments and vaccinations',`
+    <ul>
+      <li>Each appointment can remind the family 1 week, 1 day, 3 hours or 1 hour before, or at the time. Each reminder is sent once. If you move the appointment, its reminders are set again for the new time.</li>
+      <li><b>Expected vaccination dates</b> are worked out from the birth date using the ages in the Dutch Rijksvaccinatieprogramma: 6–9 weeks, 3, 5, 12 and 14 months, and 3 years. They're marked "Expected date" and send no reminders until you change the date to the one in the GGD invitation.</li>
+      <li>RSV immunisation depends on the month of birth, so it isn't added. The GGD contacts you about it.</li>
+      <li>"Add to phone calendar" saves the appointment with the same alerts in your phone's own calendar.</li>
+    </ul>`)}
+
+  ${sec('growth','Growth charts',`
+    <ul>
+      <li>Weight is entered in grams. Length and head circumference are in cm.</li>
+      <li>The weight chart shows the <b>WHO weight-for-age</b> reference for girls or boys: a shaded band from the 3rd to the 97th percentile and a dashed median line, for the first 12 months. It needs the birth date.</li>
+      <li>The change in grams next to each weight is the difference from the previous weigh-in.</li>
+      <li>Age is shown in days for the first 2 weeks, in weeks up to 10 weeks, and in months after that.</li>
+    </ul>`)}
+
+  ${sec('temp','Temperature',`
+    <ul>
+      <li>Temperature is optional when logging a diaper. Rectal measuring is the default because it's the most reliable for young children.</li>
+      <li><b>38.0 °C or higher</b> is marked as fever range. For a baby younger than 3 months, the app shows a banner saying a doctor should see the baby straight away (huisarts, or the huisartsenpost outside office hours). For older babies it suggests calling the huisarts if you're worried.</li>
+      <li><b>Below 35.8 °C</b> is marked as below the normal range (35.8–37.5 °C).</li>
+      <li>Readings outside 30–45 °C are rejected, so a Fahrenheit value like 100.4 isn't saved as Celsius by mistake.</li>
+    </ul>`)}
+
+  ${sec('data','Your data',`
+    <ul>
+      <li>Each family runs its own copy of the app with its own database on Cloudflare. Everyone who signs in with the family key can see and add entries.</li>
+      <li>Entries logged without internet are kept on the phone and sent when it's back online.</li>
+      <li>Baby → Export data downloads everything as a file you can keep as a backup or import again.</li>
+    </ul>`)}
+
+  ${sec('src','Sources',`<ul class="srcs">${Object.keys(HELP_SRC).map(k=>`<li>${src(k)}</li>`).join('')}</ul>`)}`;
+}
 function renderBaby(){
   const p=S.profile;
   return `<section class="card"><form id="f-profile" class="setup">
@@ -921,11 +1031,13 @@ function renderBaby(){
       <label class="field">Every (hours)<input id="a-pump-h" name="pumpH" type="text" inputmode="decimal" value="${S.rem.pump.hours}"></label></div>
     <div><button class="btn" type="submit">Save reminders</button></div>
   </form></section>
+  <section class="card"><p class="eyebrow">How it works</p><p style="margin:0">How the suggestions, totals, reminders and charts are calculated, with sources. You can share the page with friends.</p><div style="margin-top:10px"><button class="btn ghost" data-help>Read how it works</button></div></section>
   ${renderNotifyCard()}
   ${renderFamilyCard()}`;
 }
 function render(){
   document.querySelector('nav.tabs').hidden=!AUTH.key;
+  if(S.tab==='help'){$('#hd-name').textContent='How it works';$('#hd-age').textContent='';$('#notice').innerHTML='';$('#view').innerHTML=renderHelp();return}
   if(!AUTH.key){$('#hd-name').textContent='Baby Care Log';$('#hd-age').textContent='';$('#notice').innerHTML='';const af=document.activeElement;if(af&&af.closest&&af.closest('#view form'))return;$('#view').innerHTML=renderLogin();return}
   $('#hd-name').textContent=S.profile.name||'Baby Care Log';
   $('#hd-age').textContent=ageText();
@@ -1027,6 +1139,9 @@ document.addEventListener('click',async ev=>{
   if(t.dataset.metric){S.metric=t.dataset.metric;render();return}
   if(t.dataset.suggestRem){const at=Math.max(+t.dataset.suggestRem,Date.now()+15*60e3);S.rem.due.feed=at;await guarded(saveRem,`Feed reminder set for ${fmtTime(at)}`);render();return}
   if(t.dataset.feverOk){S.feverSeen.add(t.dataset.feverOk);try{localStorage.setItem('babycarelog.feverSeen',JSON.stringify([...S.feverSeen].slice(-20)))}catch(e){}render();return}
+  if(t.hasAttribute('data-help')){S.prevTab=S.tab==='help'?S.prevTab:S.tab;S.tab='help';render();const id=t.dataset.help;window.scrollTo(0,0);if(id)setTimeout(()=>{const el=document.getElementById('h-'+id);if(el)el.scrollIntoView({block:'start'})},30);return}
+  if(t.hasAttribute('data-help-back')){S.tab=S.prevTab||'today';if(location.pathname!=='/')history.replaceState(null,'','/');render();window.scrollTo(0,0);return}
+  if(t.hasAttribute('data-help-copy')){const u=location.origin+'/help';try{await navigator.clipboard.writeText(u);toast('Link copied: '+u)}catch(e){toast(u)}return}
   if(t.dataset.day){const k=t.dataset.day;const was=S.openDays.has(k);if(was)S.openDays.delete(k);else S.openDays.add(k);render();
     if(was){const c=document.querySelector(`.dtoggle[data-day="${k}"]`);if(c&&c.getBoundingClientRect().top<0)c.scrollIntoView({block:'start'})}return}
   if(t.dataset.hfilter){S.hFilter=t.dataset.hfilter;S.historyDays=7;render();return}
@@ -1066,6 +1181,7 @@ document.addEventListener('submit',async ev=>{
   if(f.id==='f-profile'){const fd=new FormData(f);await guarded(()=>saveProfile({name:(fd.get('name')||'').trim(),birth:fd.get('birth')||'',sex:fd.get('sex')||'girl',mlPerKg:Math.min(200,Math.max(100,numOrNull(fd.get('mlPerKg'))||150))}),'Details saved')}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+document.addEventListener('click',e=>{const a=e.target.closest('[data-help-jump]');if(!a)return;e.preventDefault();const el=document.getElementById(a.dataset.helpJump);if(el)el.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})});
 setInterval(()=>{document.querySelectorAll('[data-ago]').forEach(el=>{el.textContent=ago(+el.dataset.ago)});checkDue()},20000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDue()});
 
@@ -1102,6 +1218,7 @@ lsLoad();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').then(()=>refreshPush()).catch(()=>{})}
 render();
 if(AUTH.key)pull();else loadStatus();
+(()=>{if(location.pathname.replace(/\/+$/,'')==='/help'||new URLSearchParams(location.search).get('tab')==='help'){S.prevTab=null;S.tab='help';render();const h=location.hash;if(h&&document.querySelector(h))setTimeout(()=>document.querySelector(h).scrollIntoView(),50)}})();
 (()=>{const tq=new URLSearchParams(location.search).get('tab');if(tq&&AUTH.key&&['today','history','growth','calendar','baby'].includes(tq)){history.replaceState(null,'','/');S.tab=tq;render()}})();
 (()=>{const q=new URLSearchParams(location.search).get('log');if(q&&AUTH.key&&(q==='feed'||q==='pump')){history.replaceState(null,'','/');setTimeout(()=>openSheet(q),250)}})();
 })();
