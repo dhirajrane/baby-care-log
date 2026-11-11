@@ -87,7 +87,7 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .item .body{min-width:0}
 .item .ttl{font-weight:600}
 .item .note{color:var(--muted);font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}
-.c-pump{background:var(--pump)} .c-feed{background:var(--feed)} .c-wet{background:var(--wet)} .c-dirty{background:var(--dirty)} .c-both{background:linear-gradient(90deg,var(--wet) 50%,var(--dirty) 50%)}
+.c-note{background:var(--growth)} .c-pump{background:var(--pump)} .c-feed{background:var(--feed)} .c-wet{background:var(--wet)} .c-dirty{background:var(--dirty)} .c-both{background:linear-gradient(90deg,var(--wet) 50%,var(--dirty) 50%)}
 .dayhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}
 .dayhead .tot{font-size:12.5px;color:var(--muted)}
 .dtoggle{width:100%;background:none;border:0;padding:0;text-align:left;color:inherit;cursor:pointer;align-items:center}
@@ -97,7 +97,9 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .daymore{width:100%;margin-top:6px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);border-radius:12px;padding:9px;font-weight:600;font-size:14px}
 .day.open .daymore{margin-top:4px}
 @media (prefers-reduced-motion:reduce){.chev{transition:none}}
-.filters{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4;background:var(--bg);padding-block:4px 8px;box-shadow:0 -10px 0 var(--bg)}
+.filters{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;position:sticky;top:calc(env(safe-area-inset-top,0px) + 54px);z-index:4;background:var(--bg);padding-block:4px 8px;box-shadow:0 -10px 0 var(--bg)}
+.filters::-webkit-scrollbar{display:none}
+.filters .chip{flex:none;padding:7px 11px;font-size:13.5px}
 .filters .chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .ov{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0 6px}
 .ov div{background:var(--surface-2);border-radius:12px;padding:9px 10px;min-width:0}
@@ -137,10 +139,10 @@ h2{font-family:var(--f-display);font-weight:700;font-size:19px;margin:0;text-wra
 .checks span{display:inline-block;padding:8px 12px;border-radius:999px;border:1px solid var(--line);font-size:13.5px;font-weight:600;color:var(--ink);background:var(--surface)}
 .checks input:checked + span{background:var(--ink);color:var(--surface);border-color:var(--ink)}
 .checks input:focus-visible + span{outline:2px solid var(--feed);outline-offset:2px}
-.logbar{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 8px 2px}
-nav.tabs .lb{border:0;border-radius:14px;padding:10px 6px;font-weight:700;font-size:15px;color:#fff;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;min-height:46px}
-nav.tabs .lb span{font-size:20px;line-height:1;font-weight:600}
-nav.tabs .lb.feed{background:var(--feed)} nav.tabs .lb.diaper{background:var(--wet)} nav.tabs .lb.pump{background:var(--pump)}
+.logbar{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:8px 8px 2px}
+nav.tabs .lb{border:0;border-radius:14px;padding:10px 4px;font-weight:700;font-size:14.5px;color:#fff;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:6px;min-height:46px}
+nav.tabs .lb span{font-size:18px;line-height:1;font-weight:600}
+nav.tabs .lb.feed{background:var(--feed)} nav.tabs .lb.diaper{background:var(--wet)} nav.tabs .lb.pump{background:var(--pump)} nav.tabs .lb.note{background:var(--growth)}
 :root[data-theme="dark"] nav.tabs .lb{color:#11141c}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) nav.tabs .lb{color:#11141c}}
 nav.tabs .lb:active{transform:scale(.97)}
@@ -165,6 +167,13 @@ nav.tabs .lb:active{transform:scale(.97)}
 .help-top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
 .help-link{text-align:center;margin:4px 0 0}
 .linkbtn{border:0;background:none;padding:0;color:var(--feed);font-weight:700;text-decoration:underline;font-size:inherit}
+.nitem{display:block;width:100%;text-align:left;background:var(--surface-2);border:0;border-radius:12px;padding:10px 12px;margin-top:8px;color:var(--ink)}
+.nmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;color:var(--muted);font-weight:600}
+.nby{margin-left:auto}
+.ntext{margin-top:4px;font-size:14px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.tag{padding:1px 8px;border-radius:99px;font-size:11.5px;font-weight:700;background:var(--surface);color:var(--muted)}
+.tag.t-happy{color:var(--growth)} .tag.t-calm{color:var(--wet)} .tag.t-fussy{color:var(--dirty)} .tag.t-sleepy{color:var(--pump)} .tag.t-unwell{color:var(--danger)} .tag.t-milestone{color:var(--feed)}
+.dnotes{margin:4px 0 6px}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -254,6 +263,7 @@ nav.tabs button[aria-current="page"]{color:var(--feed)}
   <button class="lb feed" data-new="feed"><span>+</span>Feed</button>
   <button class="lb diaper" data-new="diaper"><span>+</span>Diaper</button>
   <button class="lb pump" data-new="pump"><span>+</span>Pump</button>
+  <button class="lb note" data-new="note"><span>+</span>Note</button>
 </div><div class="in">
   <button data-tab="today" aria-current="page"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Today</button>
   <button data-tab="history"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>History</button>
@@ -525,12 +535,17 @@ function ageText(){
   const anchor=new Date(bd.getFullYear(),bd.getMonth()+m,bd.getDate());const w=Math.floor((n-anchor)/DAY/7);
   return m+(m===1?' month':' months')+(w?' '+w+(w===1?' week':' weeks'):'');
 }
+const NOTE_TAGS={happy:'Happy',calm:'Calm',fussy:'Fussy',sleepy:'Sleepy',unwell:'Unwell',milestone:'Milestone'};
+function noteHTML(e){
+  return `<button class="nitem" data-edit-ev="${esc(e.id)}"><div class="nmeta"><time class="num">${fmtTime(e.t)}</time>${(e.tags||[]).map(t=>`<span class="tag t-${esc(t)}">${esc(NOTE_TAGS[t]||t)}</span>`).join('')}${e.by?`<span class="nby">${esc(e.by)}</span>`:''}</div>${e.note?`<div class="ntext">${esc(e.note)}</div>`:''}</button>`;
+}
 function evTitle(e){
+  if(e.type==='note')return (e.tags||[]).map(t=>NOTE_TAGS[t]||t).join(' · ')||'Note';
   if(e.type==='feed'){const p=[FEED[e.kind]||'Feed'];if(e.kind==='breast'&&e.side)p.push(SIDE[e.side]);if(e.min)p.push(e.min+' min');if(e.ml)p.push(e.ml+' ml');return p.join(' · ')}
   if(e.type==='pump'){const p=['Pumping'];if(e.side)p.push(SIDE[e.side]);if(e.min)p.push(e.min+' min');if(e.ml)p.push(e.ml+' ml');return p.join(' · ')}
   const p=[DIAPER[e.kind]||'Diaper'];if((e.kind==='dirty'||e.kind==='both')&&e.color)p.push(e.color);if(e.temp!=null)p.push(fmtTemp(e.temp)+(e.tempSite&&e.tempSite!=='rectal'?' ('+TSITE[e.tempSite].toLowerCase()+')':''));return p.join(' · ');
 }
-const evDot=e=>e.type==='pump'?'c-pump':e.type==='feed'?'c-feed':e.kind==='wet'?'c-wet':e.kind==='dirty'?'c-dirty':'c-both';
+const evDot=e=>e.type==='note'?'c-note':e.type==='pump'?'c-pump':e.type==='feed'?'c-feed':e.kind==='wet'?'c-wet':e.kind==='dirty'?'c-dirty':'c-both';
 function dayTotals(list){
   const f=list.filter(e=>e.type==='feed');const ml=f.reduce((s,e)=>s+(+e.ml||0),0);
   const wet=list.filter(e=>e.type==='diaper'&&(e.kind==='wet'||e.kind==='both')).length;
@@ -807,8 +822,10 @@ function renderToday(){
   ${renderComingUp()}
   ${renderSuggestCard()}
   ${renderRemCard()}
-  <section class="card"><div class="dayhead"><h2>Today</h2><span class="tot num">${today.length} entries</span></div>
-    <div class="list">${today.length?today.map(itemHTML).join(''):`<p class="empty">${S.loading?'Loading the log…':'Nothing logged today yet.'}</p>`}</div>
+  ${(()=>{const nt=today.filter(e=>e.type==='note');return `<section class="card"><div class="dayhead"><h2>Notes today</h2><button class="chip" data-new="note">+ Add note</button></div>
+    ${nt.length?nt.map(noteHTML).join(''):`<p class="empty">How is ${esc(S.profile.name||'the baby')} doing today? Add anything worth remembering: mood, sleep, a first smile, something to ask the consultatiebureau.</p>`}</section>`})()}
+  <section class="card"><div class="dayhead"><h2>Today</h2><span class="tot num">${today.filter(e=>e.type!=='note').length} entries</span></div>
+    <div class="list">${today.some(e=>e.type!=='note')?today.filter(e=>e.type!=='note').map(itemHTML).join(''):`<p class="empty">${S.loading?'Loading the log…':'Nothing logged today yet.'}</p>`}</div>
   </section>`;
 }
 function barsChart(){
@@ -824,7 +841,7 @@ function barsChart(){
   });
   return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Feeds and wet diapers per day, last 14 days">${g}</svg>`;
 }
-const HF={all:'All',feed:'Feeds',diaper:'Diapers',pump:'Pumping'};
+const HF={all:'All',feed:'Feeds',diaper:'Diapers',pump:'Pumping',note:'Notes'};
 function feedGap(list){
   const ts=list.filter(e=>e.type==='feed').map(e=>e.t).sort((a,b)=>a-b);if(ts.length<2)return null;
   return (ts[ts.length-1]-ts[0])/(ts.length-1);
@@ -863,13 +880,17 @@ function renderHistory(){
     <div class="legend"><span><i style="background:var(--feed)"></i>Expressed milk</span><span><i style="background:var(--dirty)"></i>Formula</span>${c.avg?`<span><i style="background:none;border-top:2px dashed var(--muted);height:0;border-radius:0"></i>Average ${c.avg} ml/day</span>`:''}</div>
     <div class="chart-wrap">${c.svg}</div><p class="footnote">Counts bottle feeds with an amount in ml, per calendar day. The average leaves out today because it isn't over yet. Breast feeds aren't measured in ml.</p></section>`})();
   const charts=f==='all'?milk+bars:f==='feed'?milk:f==='diaper'?bars:'';
-  const empty=S.loading?'Loading the log…':f==='all'?'No entries yet. Logged feeds, diapers and pumping sessions appear here, grouped by day.':`No ${HF[f].toLowerCase()} logged yet.`;
+  const dnotes=k=>{const ns=all[k].filter(e=>e.type==='note');return ns.length?`<div class="dnotes">${ns.map(noteHTML).join('')}</div>`:''};
+  const empty=S.loading?'Loading the log…':f==='all'?'No entries yet. Logged feeds, diapers, pumping sessions and notes appear here, grouped by day.':f==='note'?'No notes yet. Tap + Note at the bottom to write how the baby is doing.':`No ${HF[f].toLowerCase()} logged yet.`;
   return `${filters}${charts}
-  ${shown.length?shown.map(k=>{const items=all[k].filter(match);const open=S.openDays.has(k);const n=`${items.length} ${items.length===1?'entry':'entries'}`;
+  ${shown.length?shown.map(k=>{
+    if(f==='note'){const c=all[k].filter(e=>e.type==='note').length;return `<section class="card day"><div class="dayhead"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${c} note${c===1?'':'s'}</span></div>${dnotes(k)}</section>`}
+    const items=all[k].filter(e=>e.type!=='note'&&match(e));const open=S.openDays.has(k);const n=`${items.length} ${items.length===1?'entry':'entries'}`;
     return `<section class="card day ${open?'open':''}"><button class="dayhead dtoggle" data-day="${k}" aria-expanded="${open}"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${n}<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></span></button>
-    ${dayOverview(all[k],f)}
-    ${open?`<div class="list">${items.map(itemHTML).join('')}</div>`:''}
-    <button class="daymore" data-day="${k}" aria-expanded="${open}">${open?'Hide log':'Show '+n}</button></section>`}).join('')
+    ${items.length||k===dayKey(Date.now())?dayOverview(all[k],f):''}
+    ${f==='all'?dnotes(k):''}
+    ${open&&items.length?`<div class="list">${items.map(itemHTML).join('')}</div>`:''}
+    ${items.length?`<button class="daymore" data-day="${k}" aria-expanded="${open}">${open?'Hide log':'Show '+n}</button>`:''}</section>`}).join('')
    :`<section class="card"><p class="empty">${empty}</p></section>`}
   ${fkeys.length>S.historyDays?`<button class="btn ghost more" data-more>Show earlier days</button>`:''}`;
 }
@@ -927,7 +948,7 @@ const HELP_SRC={
 const src=k=>`<a href="${HELP_SRC[k][1]}" target="_blank" rel="noopener">${HELP_SRC[k][0]}</a>`;
 function renderHelp(){
   const sec=(id,title,body)=>`<section class="card help" id="h-${id}"><h2>${title}</h2>${body}</section>`;
-  const toc=[['feed','Suggested next feed'],['milk','Milk totals'],['rem','Reminders'],['cal','Appointments and vaccinations'],['growth','Growth charts'],['temp','Temperature'],['data','Your data'],['src','Sources']];
+  const toc=[['feed','Suggested next feed'],['milk','Milk totals'],['rem','Reminders'],['cal','Appointments and vaccinations'],['growth','Growth charts'],['temp','Temperature'],['notes','Day notes'],['data','Your data'],['src','Sources']];
   return `<div class="help-top"><button class="chip" data-help-back>← Back</button><button class="chip" data-help-copy>Copy link to this page</button></div>
   <section class="card help"><h2>How the app works</h2>
     <p>Baby Care Log keeps a shared record of feeds, diapers, pumping, growth, temperature and appointments for a family. This page explains how each number and suggestion is worked out, so you know what to trust it for.</p>
@@ -1002,6 +1023,13 @@ function renderHelp(){
       <li>Readings outside 30–45 °C are rejected, so a Fahrenheit value like 100.4 isn't saved as Celsius by mistake.</li>
     </ul>`)}
 
+  ${sec('notes','Day notes',`
+    <ul>
+      <li>Tap <b>+ Note</b> to write how the baby is doing: mood, sleep, behaviour, a milestone, or a question for the consultatiebureau. Quick tags (Happy, Calm, Fussy, Sleepy, Unwell, Milestone) are optional.</li>
+      <li>Notes show on Today and above each day's summary in History, and the <b>Notes</b> filter lists all of them by day. Each note shows who wrote it.</li>
+      <li>Notes don't change any totals or suggestions.</li>
+    </ul>`)}
+
   ${sec('data','Your data',`
     <ul>
       <li>Each family runs its own copy of the app with its own database on Cloudflare. Everyone who signs in with the family key can see and add entries.</li>
@@ -1068,6 +1096,13 @@ function openSheet(kind,row){
         <label class="field">Time<input id="s-t" name="t" type="datetime-local" value="${toLocalInput(r.t)}" required></label></div>
       <label class="field">Description<textarea id="s-note" name="note" placeholder="How did it go? e.g. latched well, sleepy at the end, small spit-up">${esc(r.note)}</textarea></label>
       <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del>Delete</button>`:''}<button class="btn" type="submit" style="background:var(--feed)">${editing?'Save changes':'Save feed'}</button></div></form>`;
+  } else if(kind==='note'){
+    const r=row||{t:Date.now(),tags:[]};
+    html=`<form id="f-sheet" data-kind="note"><div class="hd"><h2>${editing?'Edit note':'Add a note'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
+      <div class="field">How is ${esc(S.profile.name||'the baby')} doing? (optional)<div class="checks">${Object.entries(NOTE_TAGS).map(([v,l])=>`<label><input type="checkbox" name="tags" value="${v}" ${(r.tags||[]).includes(v)?'checked':''}><span>${l}</span></label>`).join('')}</div></div>
+      <label class="field">Note<textarea id="s-note" name="note" style="min-height:120px" maxlength="2000" placeholder="e.g. Very alert after the bath, first real smile at 10:00. Fussy in the evening, settled after a walk.">${esc(r.note)}</textarea></label>
+      <label class="field">Time<input id="s-t" name="t" type="datetime-local" value="${toLocalInput(r.t)}" required></label>
+      <div class="form-actions">${editing?`<button type="button" class="btn danger" data-del>Delete</button>`:''}<button class="btn" type="submit" style="background:var(--growth)">${editing?'Save changes':'Save note'}</button></div></form>`;
   } else if(kind==='pump'){
     const r=row||{side:'both',t:Date.now()};
     html=`<form id="f-sheet" data-kind="pump"><div class="hd"><h2>${editing?'Edit pumping session':'Log a pumping session'}</h2><button type="button" class="x" data-close aria-label="Close">×</button></div>
@@ -1109,6 +1144,9 @@ async function submitSheet(f){
     if(k==='breast')data.side=fd.get('side')||'L';
     if(k==='breast'||k==='bottle'||k==='formula'){const mn=numOrNull(fd.get('min'));if(mn!=null)data.min=Math.round(mn)}
     if(k==='bottle'||k==='formula'){const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}}
+  else if(kind==='note'){const text=String(fd.get('note')||'').trim();const tags=fd.getAll('tags');
+    if(!text&&!tags.length){toast('Write a note or pick how the baby is doing.');return}
+    data={type:'note',tags,note:text,t:new Date(fd.get('t')).getTime()||Date.now()}}
   else if(kind==='pump'){data={type:'pump',side:fd.get('side')||'both',t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};const mn=numOrNull(fd.get('min'));if(mn!=null)data.min=Math.round(mn);const ml=numOrNull(fd.get('ml'));if(ml!=null)data.ml=Math.round(ml)}
   else if(kind==='diaper'){const k=fd.get('kind');data={type:'diaper',kind:k,t:new Date(fd.get('t')).getTime()||Date.now(),note:(fd.get('note')||'').trim()};if(k!=='wet'&&fd.get('color'))data.color=fd.get('color');
     const tv=numOrNull(fd.get('temp'));if(tv!=null){if(tv<30||tv>45){toast('Enter the temperature in °C, between 30 and 45.');return}data.temp=Math.round(tv*10)/10;data.tempSite=fd.get('tempSite')||'rectal'}}
@@ -1116,7 +1154,7 @@ async function submitSheet(f){
     data={t:keyToMs(fd.get('date')),kg:kgv,cm:numOrNull(fd.get('cm')),head:numOrNull(fd.get('head')),note:(fd.get('note')||'').trim()};
     if(data.kg==null&&data.cm==null&&data.head==null){toast('Enter at least one measurement.');return}}
   closeSheet();const isNew=!f.dataset.id;
-  const ok=await guarded(()=>saveRow(coll,id,data),f.dataset.id?'Saved':kind==='growth'?'Measurement saved':kind==='feed'?'Feed logged':kind==='pump'?'Pumping session logged':'Diaper logged');
+  const ok=await guarded(()=>saveRow(coll,id,data),f.dataset.id?'Saved':kind==='growth'?'Measurement saved':kind==='feed'?'Feed logged':kind==='pump'?'Pumping session logged':kind==='note'?'Note saved':'Diaper logged');
   if(ok&&isNew&&(kind==='feed'||kind==='pump'))afterLog(kind,data.t);
 }
 
