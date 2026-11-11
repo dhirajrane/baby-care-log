@@ -174,6 +174,37 @@ nav.tabs .lb:active{transform:scale(.97)}
 .tag{padding:1px 8px;border-radius:99px;font-size:11.5px;font-weight:700;background:var(--surface);color:var(--muted)}
 .tag.t-happy{color:var(--growth)} .tag.t-calm{color:var(--wet)} .tag.t-fussy{color:var(--dirty)} .tag.t-sleepy{color:var(--pump)} .tag.t-unwell{color:var(--danger)} .tag.t-milestone{color:var(--feed)}
 .dnotes{margin:4px 0 6px}
+.rep-entry{display:flex;justify-content:flex-end;margin-bottom:6px}
+.rep{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:18px 16px;box-shadow:var(--shadow);margin-top:16px}
+.rep-h{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;border-bottom:2px solid var(--ink);padding-bottom:10px}
+.rep-h h1{font-family:var(--f-display);font-size:22px;margin:0;line-height:1.2}
+.rep-h p{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+.rep-per{text-align:right;font-size:13.5px}.rep-per b{display:block}.rep-per span{color:var(--muted)}
+.rsec{margin-top:16px;break-inside:avoid}
+.rsec h2{font-size:15px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-family:var(--f-body)}
+.rsec p,.rsec li{font-size:14px;line-height:1.5;margin:6px 0}
+.rstats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.rs{background:var(--surface-2);border-radius:10px;padding:8px 10px;min-width:0}
+.rs span{display:block;font-size:12px;color:var(--muted);font-weight:600}
+.rs b{display:block;font-size:17px;margin-top:2px}
+.rs em,.rg{font-style:normal;font-size:12px;color:var(--muted);font-weight:500}
+.tbl{overflow-x:auto}
+.rep table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.rep th{text-align:left;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.rep td{padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
+.rep tr.pre td{color:var(--muted)} .rep em{font-style:normal;color:var(--muted);font-size:12px}
+.rep tr.hot td,.rep td.hotc{color:var(--danger);font-weight:700}
+.rnotes{padding-left:18px}
+.rq-text{white-space:pre-wrap}
+.rep-foot{font-size:12px;color:var(--muted);margin-top:16px;border-top:1px solid var(--line);padding-top:8px}
+@media print{
+  :root,:root:not([data-theme="light"]),:root[data-theme="dark"]{--bg:#fff;--surface:#fff;--surface-2:#f2f2f2;--ink:#000;--muted:#444;--line:#bbb;--danger:#b3261e;--shadow:none;color-scheme:light}
+  header.top,nav.tabs,#notice,.no-print,.toast,#sheet-root,body::before{display:none!important}
+  body{background:#fff}.app{padding:0!important;max-width:none}
+  .rep{border:0;box-shadow:none;padding:0;margin:0}
+  .tbl{overflow:visible}.rep td,.rep th{white-space:normal}
+  @page{margin:14mm}
+}
 .empty{color:var(--muted);font-size:14px;padding:6px 0}
 .more{margin-top:4px}
 
@@ -527,11 +558,11 @@ function checkDue(){
 const feeds=()=>S.events.filter(e=>e.type==='feed');
 const diapers=()=>S.events.filter(e=>e.type==='diaper');
 function nextSide(){const last=feeds().find(f=>f.kind==='breast'&&(f.side==='L'||f.side==='R'));return last?(last.side==='L'?'R':'L'):'L'}
-function ageText(){
-  if(!S.profile.birth)return'';const b=keyToMs(S.profile.birth);const days=Math.floor((keyToMs(dayKey(Date.now()))-b)/DAY);
+function ageText(at){
+  at=at||Date.now();if(!S.profile.birth)return'';const b=keyToMs(S.profile.birth);const days=Math.floor((keyToMs(dayKey(at))-b)/DAY);
   if(days<0)return'';if(days<14)return days===1?'1 day old':days+' days old';
   if(days<70){const w=Math.floor(days/7),d=days%7;return w+' weeks'+(d?' '+d+(d===1?' day':' days'):'')}
-  const bd=new Date(b),n=new Date();let m=(n.getFullYear()-bd.getFullYear())*12+n.getMonth()-bd.getMonth();if(n.getDate()<bd.getDate())m--;
+  const bd=new Date(b),n=new Date(at);let m=(n.getFullYear()-bd.getFullYear())*12+n.getMonth()-bd.getMonth();if(n.getDate()<bd.getDate())m--;
   const anchor=new Date(bd.getFullYear(),bd.getMonth()+m,bd.getDate());const w=Math.floor((n-anchor)/DAY/7);
   return m+(m===1?' month':' months')+(w?' '+w+(w===1?' week':' weeks'):'');
 }
@@ -735,6 +766,7 @@ function renderCalendar(){
     <p class="footnote">RSV immunisation depends on the month she was born, and the GGD contacts you about it. Check the dates in your invitation or at rijksvaccinatieprogramma.nl.</p>`
     :`<p style="margin:0">Add her birth date under <b>Baby</b> to see the expected vaccination dates.</p>`}</section>`:'';
   return `<section class="card"><div class="row-between"><h2>Appointments</h2><button class="btn" data-new-appt>Add appointment</button></div>
+    <p style="margin:8px 0 0"><button class="linkbtn" data-report>Prepare a visit report</button> <span class="footnote">to show the doctor how things have gone since the last visit.</span></p>
     ${up.length?Object.entries(months).map(([m,list])=>`<p class="eyebrow" style="margin:16px 0 0">${esc(m)}</p><div class="list">${list.map(apptHTML).join('')}</div>`).join('')
       :`<p class="empty" style="margin-top:10px">${S.loading?'Loading…':'No upcoming appointments. Add midwife visits, consultatiebureau check-ups and vaccinations here, and every family phone gets the reminders.'}</p>`}
   </section>
@@ -882,7 +914,7 @@ function renderHistory(){
   const charts=f==='all'?milk+bars:f==='feed'?milk:f==='diaper'?bars:'';
   const dnotes=k=>{const ns=all[k].filter(e=>e.type==='note');return ns.length?`<div class="dnotes">${ns.map(noteHTML).join('')}</div>`:''};
   const empty=S.loading?'Loading the log…':f==='all'?'No entries yet. Logged feeds, diapers, pumping sessions and notes appear here, grouped by day.':f==='note'?'No notes yet. Tap + Note at the bottom to write how the baby is doing.':`No ${HF[f].toLowerCase()} logged yet.`;
-  return `${filters}${charts}
+  return `<div class="rep-entry"><button class="chip" data-report>Visit report for the doctor</button></div>${filters}${charts}
   ${shown.length?shown.map(k=>{
     if(f==='note'){const c=all[k].filter(e=>e.type==='note').length;return `<section class="card day"><div class="dayhead"><h2>${esc(fmtDay(k))}</h2><span class="tot num">${c} note${c===1?'':'s'}</span></div>${dnotes(k)}</section>`}
     const items=all[k].filter(e=>e.type!=='note'&&match(e));const open=S.openDays.has(k);const n=`${items.length} ${items.length===1?'entry':'entries'}`;
@@ -948,7 +980,7 @@ const HELP_SRC={
 const src=k=>`<a href="${HELP_SRC[k][1]}" target="_blank" rel="noopener">${HELP_SRC[k][0]}</a>`;
 function renderHelp(){
   const sec=(id,title,body)=>`<section class="card help" id="h-${id}"><h2>${title}</h2>${body}</section>`;
-  const toc=[['feed','Suggested next feed'],['milk','Milk totals'],['rem','Reminders'],['cal','Appointments and vaccinations'],['growth','Growth charts'],['temp','Temperature'],['notes','Day notes'],['data','Your data'],['src','Sources']];
+  const toc=[['feed','Suggested next feed'],['milk','Milk totals'],['rem','Reminders'],['cal','Appointments and vaccinations'],['growth','Growth charts'],['temp','Temperature'],['notes','Day notes'],['report','Visit report'],['data','Your data'],['src','Sources']];
   return `<div class="help-top"><button class="chip" data-help-back>← Back</button><button class="chip" data-help-copy>Copy link to this page</button></div>
   <section class="card help"><h2>How the app works</h2>
     <p>Baby Care Log keeps a shared record of feeds, diapers, pumping, growth, temperature and appointments for a family. This page explains how each number and suggestion is worked out, so you know what to trust it for.</p>
@@ -1030,6 +1062,15 @@ function renderHelp(){
       <li>Notes don't change any totals or suggestions.</li>
     </ul>`)}
 
+  ${sec('report','Visit report',`
+    <ul>
+      <li>History → <b>Visit report for the doctor</b> (or Calendar → Prepare a visit report) builds a one-page summary for a chosen period. By default it covers the time since the last consultatiebureau, doctor or midwife appointment in Calendar.</li>
+      <li><b>Averages per day</b> use complete days that have entries for that item, so a day you didn't log doesn't pull the average down. Today isn't counted in averages because it isn't over yet. The range in brackets is the lowest and highest day.</li>
+      <li><b>Weight gain per week</b> runs from the last weight before the period (if there is one) to the latest weight in it. The percentile line compares the latest weight with the WHO weight-for-age reference.</li>
+      <li><b>Longest stretch</b> is the longest gap between feeds that ended on that day, averaged over the days. Top-ups within 30 minutes count as one feed.</li>
+      <li>Use <b>Save as PDF / print</b> to keep or send a copy. Questions you type for the doctor are saved on this phone only.</li>
+    </ul>`)}
+
   ${sec('data','Your data',`
     <ul>
       <li>Each family runs its own copy of the app with its own database on Cloudflare. Everyone who signs in with the family key can see and add entries.</li>
@@ -1038,6 +1079,116 @@ function renderHelp(){
     </ul>`)}
 
   ${sec('src','Sources',`<ul class="srcs">${Object.keys(HELP_SRC).map(k=>`<li>${src(k)}</li>`).join('')}</ul>`)}`;
+}
+// ---------- visit report ----------
+const REP_KINDS=['cb','doctor','midwife'];
+let RQ='';try{RQ=localStorage.getItem('babycarelog.questions')||''}catch(e){}
+function lastVisit(){const now=Date.now();return S.appts.filter(a=>!a.planned&&a.t<now&&REP_KINDS.includes(a.kind)).sort((a,b)=>b.t-a.t)[0]||null}
+function repRange(preset){
+  const to=dayKey(Date.now());const back=n=>dayKey(Date.now()-(n-1)*DAY);
+  if(preset==='visit'){const lv=lastVisit();if(lv)return{from:dayKey(lv.t),to,preset}}
+  const n={'7':7,'14':14,'30':30}[preset]||14;return{from:back(n),to,preset:String(n)};
+}
+function whoBand(kg,ms){
+  const ref=WHO[S.profile.sex||'girl'];if(!S.profile.birth||!ref)return null;
+  const m=(ms-keyToMs(S.profile.birth))/(30.4375*DAY);if(m<0||m>12)return null;
+  const at=arr=>{const i=Math.min(11,Math.floor(m)),f=m-i;return arr[i]+(arr[i+1]-arr[i])*f};
+  const p3=at(ref.p3),p50=at(ref.p50),p97=at(ref.p97);
+  return kg<p3?'below the 3rd percentile':kg<p50?'between the 3rd and 50th percentile':kg<=p97?'between the 50th and 97th percentile':'above the 97th percentile';
+}
+function buildReport(from,to){
+  const A=keyToMs(from),B=keyToMs(to)+DAY,todayK=dayKey(Date.now());
+  const inR=e=>e.t>=A&&e.t<B;const ev=S.events.filter(inR);
+  const ses=feedSessions(S.events.filter(e=>e.type==='feed'&&e.kind!=='solids'&&e.t>=A-DAY&&e.t<B));
+  const days=[];
+  for(const d=new Date(A);d.getTime()<B&&days.length<93;d.setDate(d.getDate()+1)){
+    const k=dayKey(d.getTime());const L=ev.filter(e=>dayKey(e.t)===k);
+    const t=dayTotals(L),r=intake(L);const ds=ses.filter(x=>dayKey(x.t)===k);
+    let longest=0;ses.forEach((x,i)=>{if(i&&dayKey(x.t)===k)longest=Math.max(longest,x.t-ses[i-1].t)});
+    const tv=L.filter(e=>e.temp!=null).map(e=>+e.temp);
+    days.push({k,complete:k<todayK,feeds:ds.length,ml:r.ml,exp:r.exp,form:r.form,bottles:r.bottles,breast:r.breast,wet:t.wet,dirty:t.dirty,pumps:t.pumps,pumped:t.pumped,maxTemp:tv.length?Math.max(...tv):null,longest,any:L.length>0});
+  }
+  const avg=(arr,f)=>{const v=arr.map(f);return v.length?{avg:v.reduce((a,b)=>a+b,0)/v.length,min:Math.min(...v),max:Math.max(...v),n:v.length}:null};
+  const full=days.filter(d=>d.complete);
+  const feedDays=full.filter(d=>d.feeds>0),diaperDays=full.filter(d=>d.wet+d.dirty>0),bottleDays=full.filter(d=>d.ml>0),pumpDays=full.filter(d=>d.pumps>0);
+  const bottlesAll=ses.filter(x=>x.t>=A&&x.t<B&&x.ml>0&&!x.unm).map(x=>x.ml);
+  const g=S.growth.filter(m=>m.kg!=null||m.cm!=null||m.head!=null).sort((a,b)=>a.t-b.t);
+  const gIn=g.filter(inR);const before=[...g].filter(m=>m.t<A&&m.kg!=null).pop()||null;
+  const withKg=[...(before?[before]:[]),...gIn.filter(m=>m.kg!=null)];
+  let gain=null;if(withKg.length>=2){const f=withKg[0],l=withKg[withKg.length-1];const dd=(l.t-f.t)/DAY;if(dd>=3)gain={g:Math.round((l.kg-f.kg)*1000),perWeek:Math.round((l.kg-f.kg)*1000/dd*7),from:f,to:l}}
+  const colors={};ev.filter(e=>e.type==='diaper'&&e.color).forEach(e=>colors[e.color]=(colors[e.color]||0)+1);
+  const latestW=[...g].filter(m=>m.kg!=null&&m.t<B).pop()||null;
+  return{from,to,A,B,days,full,
+    feeds:avg(feedDays,d=>d.feeds),ml:avg(bottleDays,d=>d.ml),breast:avg(feedDays,d=>d.breast),longest:avg(feedDays.filter(d=>d.longest),d=>d.longest),
+    bottle:bottlesAll.length?{avg:bottlesAll.reduce((a,b)=>a+b,0)/bottlesAll.length,min:Math.min(...bottlesAll),max:Math.max(...bottlesAll),n:bottlesAll.length}:null,
+    expShare:(()=>{const e=full.reduce((a,d)=>a+d.exp,0),f=full.reduce((a,d)=>a+d.form,0);return e+f?{exp:Math.round(e/(e+f)*100),form:Math.round(f/(e+f)*100)}:null})(),
+    wet:avg(diaperDays,d=>d.wet),dirty:avg(diaperDays,d=>d.dirty),colors,pumped:avg(pumpDays,d=>d.pumped),pumps:avg(pumpDays,d=>d.pumps),
+    temps:ev.filter(e=>e.temp!=null).sort((a,b)=>a.t-b.t),notes:ev.filter(e=>e.type==='note').sort((a,b)=>a.t-b.t),
+    appts:S.appts.filter(a=>!a.planned&&inR(a)),growth:gIn,before,gain,latestW,
+    hasPump:days.some(d=>d.pumps),hasTemp:days.some(d=>d.maxTemp!=null)};
+}
+function renderReport(){
+  if(!S.rep)S.rep={...repRange(lastVisit()?'visit':'14'),notes:true};
+  const q=S.rep;let from=q.from,to=q.to;if(from>to)[from,to]=[to,from];
+  const r=buildReport(from,to);const n1=v=>v==null?'–':(Math.round(v*10)/10).toLocaleString();const ml10=v=>Math.round(v/10)*10;
+  const rng=a=>a&&a.n>1&&a.min!==a.max?` <span class="rg">(${n1(a.min)}–${n1(a.max)})</span>`:'';
+  const rngMl=a=>a&&a.n>1&&a.min!==a.max?` <span class="rg">(${ml10(a.min)}–${ml10(a.max)})</span>`:'';
+  const lv=lastVisit();const nd=r.days.length;const fd=d=>new Date(keyToMs(d)).toLocaleDateString([], {day:'numeric',month:'short',year:'numeric'});
+  const stat=(label,val,sub)=>`<div class="rs"><span>${label}</span><b class="num">${val}</b>${sub?`<em>${sub}</em>`:''}</div>`;
+  const P=S.profile;const name=esc(P.name||'Baby');
+  const controls=`<div class="no-print rep-ctl">
+    <div class="help-top"><button class="chip" data-rep-back>← Back</button><button class="btn" data-rep-print>Save as PDF / print</button></div>
+    <section class="card"><h2>Visit report</h2><p class="footnote" style="margin:4px 0 10px">Pick the period to show the doctor. The report updates straight away.</p>
+      <div class="filters" style="position:static;padding:0">${[['visit',lv?'Since last visit':null],['7','Last 7 days'],['14','Last 14 days'],['30','Last 30 days']].filter(x=>x[1]).map(([k,l])=>`<button class="chip" data-rep-preset="${k}" aria-pressed="${q.preset===k}">${l}</button>`).join('')}</div>
+      <div class="row2" style="margin-top:10px"><label class="field">From<input id="rep-from" type="date" value="${from}" max="${dayKey(Date.now())}"></label><label class="field">To<input id="rep-to" type="date" value="${to}" max="${dayKey(Date.now())}"></label></div>
+      ${lv?`<p class="footnote">Last visit: ${esc(lv.title||AK_TITLE[lv.kind])}, ${fmtDate(lv.t)}.</p>`:`<p class="footnote">Add consultatiebureau or doctor visits in Calendar to get a "Since last visit" option.</p>`}
+      <label class="check" style="margin-top:6px"><input type="checkbox" id="rep-notes" ${q.notes?'checked':''}>Include day notes</label>
+      <label class="field" style="margin-top:10px">Questions for the doctor<textarea id="rep-q" placeholder="e.g. Is 4h between feeds at night OK? Spit-up after most bottles.">${esc(RQ)}</textarea></label>
+    </section></div>`;
+  const wb=r.latestW?whoBand(+r.latestW.kg,r.latestW.t):null;
+  const growthRows=[...(r.before?[r.before]:[]),...r.growth];
+  const body=`<article class="rep">
+    <header class="rep-h"><div><h1>${name} · visit report</h1><p>${P.birth?`Born ${fmtDate(keyToMs(P.birth))} · ${esc(ageText(r.B-1))} at the end of this period`:''}${P.sex?` · ${P.sex==='boy'?'boy':'girl'}`:''}</p></div>
+      <div class="rep-per"><b>${fd(from)} – ${fd(to)}</b><span>${nd} day${nd>1?'s':''}${to===dayKey(Date.now())?' · today so far':''}</span></div></header>
+
+    <section class="rsec"><h2>Growth</h2>
+      ${growthRows.length?`<div class="tbl"><table><thead><tr><th>Date</th><th>Weight</th><th>Length</th><th>Head</th></tr></thead><tbody>${growthRows.map(m=>`<tr${m===r.before?' class="pre"':''}><td>${fmtDate(m.t)}${m===r.before?' <em>(before period)</em>':''}</td><td>${m.kg!=null?grams(m.kg)+' g':'–'}</td><td>${m.cm!=null?m.cm+' cm':'–'}</td><td>${m.head!=null?m.head+' cm':'–'}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">No measurements logged.</p>'}
+      ${r.gain?`<p><b>${r.gain.g>=0?'+':''}${r.gain.g.toLocaleString()} g</b> from ${fmtDate(r.gain.from.t)} to ${fmtDate(r.gain.to.t)}, about <b>${r.gain.perWeek>=0?'+':''}${r.gain.perWeek} g per week</b>.</p>`:''}
+      ${wb?`<p>Latest weight is ${wb} for ${P.sex==='boy'?'boys':'girls'} of this age (WHO weight-for-age).</p>`:''}
+    </section>
+
+    <section class="rsec"><h2>Feeding</h2><div class="rstats">
+      ${stat('Feeds per day',n1(r.feeds&&r.feeds.avg)+rng(r.feeds))}
+      ${stat('Milk from bottles per day',r.ml?ml10(r.ml.avg)+' ml'+rngMl(r.ml):'–',r.expShare?`${r.expShare.exp}% expressed · ${r.expShare.form}% formula`:'')}
+      ${stat('Average bottle',r.bottle?Math.round(r.bottle.avg)+' ml':'–',r.bottle&&r.bottle.n>1?`${r.bottle.min}–${r.bottle.max} ml · ${r.bottle.n} bottles`:'')}
+      ${stat('Breast feeds per day',n1(r.breast&&r.breast.avg))}
+      ${stat('Longest stretch between feeds',r.longest?fmtDur(r.longest.avg):'–',r.longest&&r.longest.n>1?`average per day · longest ${fmtDur(r.longest.max)}`:'average per day')}
+    </div></section>
+
+    <section class="rsec"><h2>Diapers</h2><div class="rstats">
+      ${stat('Wet per day',n1(r.wet&&r.wet.avg)+rng(r.wet))}
+      ${stat('Dirty per day',n1(r.dirty&&r.dirty.avg)+rng(r.dirty))}
+      ${stat('Stool colours',Object.keys(r.colors).length?Object.entries(r.colors).sort((a,b)=>b[1]-a[1]).map(([c,n])=>`${esc(c)} ${n}×`).join(', '):'–')}
+    </div></section>
+
+    ${r.hasTemp?`<section class="rsec"><h2>Temperature</h2>
+      <div class="tbl"><table><thead><tr><th>When</th><th>Temperature</th><th>Measured</th></tr></thead><tbody>${r.temps.map(e=>`<tr${e.temp>=38?' class="hot"':''}><td>${fmtDate(e.t)} ${fmtTime(e.t)}</td><td>${fmtTemp(e.temp)}${e.temp>=38?' · fever range':e.temp<35.8?' · low':''}</td><td>${esc(TSITE[e.tempSite||'rectal']||'')}</td></tr>`).join('')}</tbody></table></div></section>`:''}
+
+    ${r.hasPump?`<section class="rsec"><h2>Pumping</h2><div class="rstats">${stat('Pumped per day',r.pumped?ml10(r.pumped.avg)+' ml'+rngMl(r.pumped):'–')}${stat('Sessions per day',n1(r.pumps&&r.pumps.avg))}</div></section>`:''}
+
+    <section class="rsec"><h2>Day by day</h2><div class="tbl"><table class="days"><thead><tr><th>Day</th><th>Feeds</th><th>Bottles ml</th><th>Breast</th><th>Wet</th><th>Dirty</th>${r.hasTemp?'<th>Max °C</th>':''}${r.hasPump?'<th>Pumped ml</th>':''}</tr></thead><tbody>
+      ${[...r.days].reverse().map(d=>`<tr${d.complete?'':' class="pre"'}><td>${new Date(keyToMs(d.k)).toLocaleDateString([], {weekday:'short',day:'numeric',month:'short'})}${d.complete?'':' <em>so far</em>'}</td><td>${d.any?d.feeds:'–'}</td><td>${d.any?d.ml:'–'}</td><td>${d.any?d.breast:'–'}</td><td>${d.any?d.wet:'–'}</td><td>${d.any?d.dirty:'–'}</td>${r.hasTemp?`<td${d.maxTemp>=38?' class="hotc"':''}>${d.maxTemp!=null?d.maxTemp.toFixed(1):'–'}</td>`:''}${r.hasPump?`<td>${d.pumped||'–'}</td>`:''}</tr>`).join('')}
+    </tbody></table></div></section>
+
+    ${r.appts.length?`<section class="rsec"><h2>Appointments in this period</h2><ul>${r.appts.map(a=>`<li>${fmtDate(a.t)}: ${esc(a.title||AK_TITLE[a.kind])}${a.place?' · '+esc(a.place):''}</li>`).join('')}</ul></section>`:''}
+
+    ${q.notes&&r.notes.length?`<section class="rsec"><h2>Day notes</h2><ul class="rnotes">${r.notes.map(e=>`<li><b>${new Date(e.t).toLocaleDateString([], {day:'numeric',month:'short'})} ${fmtTime(e.t)}</b>${(e.tags||[]).length?' · '+e.tags.map(t=>esc(NOTE_TAGS[t]||t)).join(', '):''}${e.note?`<br>${esc(e.note)}`:''}</li>`).join('')}</ul></section>`:''}
+
+    <section class="rsec rq-print" ${RQ.trim()?'':'hidden'}><h2>Questions for the doctor</h2><p class="rq-text">${esc(RQ)}</p></section>
+
+    <p class="rep-foot">Made with Baby Care Log from entries logged by the parents. Daily averages use complete days that have entries for that item${to===dayKey(Date.now())?'; today is not included in averages because it isn’t over yet':''}. Breast feeds are counted but not measured in ml.</p>
+  </article>`;
+  return controls+body;
 }
 function renderBaby(){
   const p=S.profile;
@@ -1076,7 +1227,8 @@ function render(){
     fever=`<div class="alert hot" role="alert"><div><b>${fmtTemp(lt.temp)} at ${fmtTime(lt.t)}</b><div class="sub">${am!=null&&am<3?'For a baby younger than 3 months, 38 °C or higher means a doctor should see her straight away. Call your huisarts, or the huisartsenpost outside office hours.':'38 °C or higher counts as fever. Call your huisarts if you are worried, or the huisartsenpost outside office hours.'}</div></div><div class="rem-btns"><button class="chip" data-fever-ok="${esc(lt.id)}">OK</button></div></div>`}
   $('#notice').innerHTML=fever+alerts+(!S.online?`<div class="notice">Offline. New entries are kept on this phone${outbox.length?` (${outbox.length} waiting)`:''} and sync when you're back online.</div>`:'');
   const af=document.activeElement;if(S.tab==='baby'&&af&&af.closest&&af.closest('#view form'))return;
-  const v={today:renderToday,history:renderHistory,growth:renderGrowth,calendar:renderCalendar,baby:renderBaby}[S.tab]();
+  if(S.tab==='report'&&af&&/^(INPUT|TEXTAREA)$/.test(af.tagName)&&af.closest('#view'))return;
+  const v={today:renderToday,history:renderHistory,growth:renderGrowth,calendar:renderCalendar,baby:renderBaby,report:renderReport}[S.tab]();
   $('#view').innerHTML=v;
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===S.tab?'page':'false'));
 }
@@ -1180,6 +1332,10 @@ document.addEventListener('click',async ev=>{
   if(t.hasAttribute('data-help')){S.prevTab=S.tab==='help'?S.prevTab:S.tab;S.tab='help';render();const id=t.dataset.help;window.scrollTo(0,0);if(id)setTimeout(()=>{const el=document.getElementById('h-'+id);if(el)el.scrollIntoView({block:'start'})},30);return}
   if(t.hasAttribute('data-help-back')){S.tab=S.prevTab||'today';if(location.pathname!=='/')history.replaceState(null,'','/');render();window.scrollTo(0,0);return}
   if(t.hasAttribute('data-help-copy')){const u=location.origin+'/help';try{await navigator.clipboard.writeText(u);toast('Link copied: '+u)}catch(e){toast(u)}return}
+  if(t.hasAttribute('data-report')){S.prevTab=S.tab;S.rep=null;S.tab='report';render();window.scrollTo(0,0);return}
+  if(t.hasAttribute('data-rep-back')){S.tab=S.prevTab&&S.prevTab!=='report'?S.prevTab:'history';render();window.scrollTo(0,0);return}
+  if(t.dataset.repPreset){S.rep={...S.rep,...repRange(t.dataset.repPreset)};render();return}
+  if(t.hasAttribute('data-rep-print')){try{window.print()}catch(e){toast("This browser can't print. Take screenshots of the report instead.")}return}
   if(t.dataset.day){const k=t.dataset.day;const was=S.openDays.has(k);if(was)S.openDays.delete(k);else S.openDays.add(k);render();
     if(was){const c=document.querySelector(`.dtoggle[data-day="${k}"]`);if(c&&c.getBoundingClientRect().top<0)c.scrollIntoView({block:'start'})}return}
   if(t.dataset.hfilter){S.hFilter=t.dataset.hfilter;S.historyDays=7;render();return}
@@ -1219,6 +1375,12 @@ document.addEventListener('submit',async ev=>{
   if(f.id==='f-profile'){const fd=new FormData(f);await guarded(()=>saveProfile({name:(fd.get('name')||'').trim(),birth:fd.get('birth')||'',sex:fd.get('sex')||'girl',mlPerKg:Math.min(200,Math.max(100,numOrNull(fd.get('mlPerKg'))||150))}),'Details saved')}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+document.addEventListener('change',e=>{
+  if(S.tab!=='report'||!S.rep)return;const id=e.target.id;
+  if(id==='rep-from'||id==='rep-to'){if(e.target.value){S.rep[id==='rep-from'?'from':'to']=e.target.value;S.rep.preset='custom';e.target.blur();render()}}
+  if(id==='rep-notes'){S.rep.notes=e.target.checked;render()}
+});
+document.addEventListener('input',e=>{if(e.target.id!=='rep-q')return;RQ=e.target.value;try{localStorage.setItem('babycarelog.questions',RQ)}catch(x){}const sec=document.querySelector('.rq-print');if(sec){sec.hidden=!RQ.trim();sec.querySelector('.rq-text').textContent=RQ}});
 document.addEventListener('click',e=>{const a=e.target.closest('[data-help-jump]');if(!a)return;e.preventDefault();const el=document.getElementById(a.dataset.helpJump);if(el)el.scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'})});
 setInterval(()=>{document.querySelectorAll('[data-ago]').forEach(el=>{el.textContent=ago(+el.dataset.ago)});checkDue()},20000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkDue()});
