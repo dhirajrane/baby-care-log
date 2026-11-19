@@ -59,6 +59,7 @@ npm run deploy   # deploy from your own machine (after: npx wrangler login)
 ```
 
 How the code is organized:
-- `public/` holds the app screens, the service worker and the icons.
+- `web/` holds the app screens: a React app in `web/src` (components in `web/src/components`, calculations in `web/src/lib`).
+- `public/` holds the service worker, the manifest and the icons.
 - `src/worker.js` is the API, sync and reminder check.
 - `src/webpush.js` sends encrypted push notifications.

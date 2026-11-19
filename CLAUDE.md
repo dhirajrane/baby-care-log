@@ -9,17 +9,22 @@ A family baby tracker for Dhiraj's daughter. It logs feeds, diapers, pumping, gr
 ## Working agreement (from the original chat)
 - The user sometimes asks to **plan only**. When they say "don't implement / don't push", answer with a plan and change nothing.
 - Otherwise: implement, test locally, then commit and push to `main` (that's how the user gets updates). Commit author: `Dhiraj Rane <drrane24@gmail.com>`.
-- Test before pushing: syntax-check the inline script, run the app locally, drive it in a phone-sized headless browser (390×844), and look at screenshots in light and dark mode.
+- Test before pushing: build, run the app locally, drive it in a phone-sized headless browser (390×844), and look at screenshots in light and dark mode.
 - User-facing copy: plain, short, active voice; Dutch health terms where they're what parents know (consultatiebureau, huisarts, huisartsenpost, GGD).
 - Health-related features must stay grounded in sources (listed below) and phrased as guidance, not instructions. Keep the "How it works" page in sync with any calculation change.
 
 ## Layout
-- `public/index.html`: the whole front end (HTML + CSS + one inline script, about 1,400 lines). Sections are marked with `// ---------- name ----------` comments: helpers, state, sign-in, notifications, derived, render, next feed suggestion, appointments, How it works, visit report, sheets, toast, events, app-only events, boot.
+- `web/`: the React front end (React 18, bundled by esbuild, no other build tool).
+  - `web/index.html` (page shell; `/*STYLES*/` is replaced by `web/styles.css` at build time), `web/styles.css`.
+  - `web/src/main.jsx`: boot (load saved log, service worker, deep links `/help`, `?tab=`, `?log=`, polling).
+  - `web/src/store.js`: one mutable state object `S` plus `render()`/`useApp()` (useSyncExternalStore), API calls, offline outbox and sync, sign-in, push, reminders, sheets and toast.
+  - `web/src/lib/`: `util.js` (dates, formatting), `constants.js` (labels, WHO tables, sources), `calc.js` (pure calculations: totals, next-feed suggestion, vaccinations, visit report; each takes the state).
+  - `web/src/components/`: `App.jsx` (shell, tabs), `Today`, `History`, `Growth`, `Calendar`, `Baby`, `Report`, `Help`, `Login`, `Sheets` (all bottom-sheet forms), `SuggestCard`, `Reminders` (reminder card, alerts, fever banner), `charts.jsx`, `ui.jsx` (radios, confirm button, list items).
 - `public/sw.js`: service worker (offline shell, push display, notification actions "Log feed" / "Snooze 15 min").
 - `public/manifest.webmanifest`, icons.
 - `src/worker.js`: Cloudflare Worker. Serves the inlined static assets, the JSON API under `/api/*`, and the every-minute cron that sends feed/pump and appointment reminders.
 - `src/webpush.js`: Web Push (VAPID + aes128gcm) implemented with WebCrypto.
-- `scripts/build.mjs`: inlines `public/` into `src/assets.js` (generated, git-ignored) and bundles to `dist/worker.js` (git-ignored).
+- `scripts/build.mjs`: bundles `web/src/main.jsx` to `/app.js`, builds the page from `web/index.html` + `web/styles.css`, inlines those and `public/` into `src/assets.js` (generated, git-ignored, only rewritten when it changes so `wrangler dev` doesn't loop), and bundles the worker to `dist/worker.js` (git-ignored).
 - `wrangler.toml`: D1 binding `DB` (database `baby-care-log`), cron `* * * * *`.
 - `test/e2e.mjs`, `test/appts.mjs`: API and push tests against a local dev server with a fresh DB (they set up the family key `sunshine-2026`, use a fake push endpoint and decrypt pushes with `http_ece`).
 
@@ -55,8 +60,7 @@ node test/e2e.mjs                              # fresh DB
 node test/appts.mjs                            # fresh DB
 curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"   # trigger the reminder cron
 ```
-Quick syntax check of the inline script:
-`python3 -c "import re;s=open('public/index.html').read();open('/tmp/app.js','w').write(re.findall(r'<script>(.*?)</script>',s,re.S)[0])" && node --check /tmp/app.js`
+`npm run build` fails on any syntax error in `web/src`.
 
 ## Known limits and open ideas
 - One family per deployment; friends need their own copy (README) until multi-family accounts exist.

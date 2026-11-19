@@ -19,5 +19,9 @@
     "http_ece": "^1.2.0",
     "wrangler": "^3.99.0"
   },
-  "private": true
+  "private": true,
+  "dependencies": {
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
 }
