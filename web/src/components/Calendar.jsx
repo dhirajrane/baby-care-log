@@ -1,7 +1,7 @@
 // Calendar tab: appointments, expected vaccination dates, and the "Coming up" card on Today.
 import { DAY, fmtTime, startOfToday, uid } from '../lib/util.js';
 import { AK, AK_TITLE } from '../lib/constants.js';
-import { apptWhen, remindLabel, vaxPlan } from '../lib/calc.js';
+import { apptWhen, remindLabel, vaxPlan, pron } from '../lib/calc.js';
 import { S, render, go, openSheet, openReport, saveRow, toast } from '../store.js';
 
 export function ApptRow({ a, compact }) {
@@ -39,7 +39,7 @@ async function addVaxPlan() {
 export default function Calendar() {
   const t0 = startOfToday(); const up = S.appts.filter((a) => a.t >= t0); const past = S.appts.filter((a) => a.t < t0).reverse();
   const months = {}; up.forEach((a) => { const k = new Date(a.t).toLocaleDateString([], { month: 'long', year: 'numeric' }); (months[k] = months[k] || []).push(a); });
-  const hasVax = S.appts.some((a) => a.kind === 'vaccination'); const plan = vaxPlan(S);
+  const hasVax = S.appts.some((a) => a.kind === 'vaccination'); const plan = vaxPlan(S); const { she, her } = pron(S);
   return <>
     <section className="card"><div className="row-between"><h2>Appointments</h2><button className="btn" onClick={() => openSheet('appt', null)}>Add appointment</button></div>
       <p style={{ margin: '8px 0 0' }}><button className="linkbtn" onClick={openReport}>Prepare a visit report</button> <span className="footnote">to show the doctor how things have gone since the last visit.</span></p>
@@ -48,10 +48,10 @@ export default function Calendar() {
     </section>
     {!hasVax && <section className="card"><p className="eyebrow">Dutch vaccination schedule</p>
       {S.profile.birth ? <>
-        <p style={{ margin: 0 }}>Add the expected dates from the Rijksvaccinatieprogramma, worked out from her birth date. They're marked as expected until you set the date from the GGD invitation, and reminders start once you do.</p>
+        <p style={{ margin: 0 }}>Add the expected dates from the Rijksvaccinatieprogramma, worked out from {her} birth date. They're marked as expected until you set the date from the GGD invitation, and reminders start once you do.</p>
         <div style={{ marginTop: 10 }}><button className="btn" disabled={!plan.length} onClick={addVaxPlan}>Add {plan.length} expected vaccination{plan.length === 1 ? '' : 's'}</button></div>
-        <p className="footnote">RSV immunisation depends on the month she was born, and the GGD contacts you about it. Check the dates in your invitation or at rijksvaccinatieprogramma.nl.</p>
-      </> : <p style={{ margin: 0 }}>Add her birth date under <b>Baby</b> to see the expected vaccination dates.</p>}
+        <p className="footnote">RSV immunisation depends on the month {she} was born, and the GGD contacts you about it. Check the dates in your invitation or at rijksvaccinatieprogramma.nl.</p>
+      </> : <p style={{ margin: 0 }}>Add {her} birth date under <b>Baby</b> to see the expected vaccination dates.</p>}
     </section>}
     {past.length > 0 && <section className="card"><button className="chip" onClick={() => { S.showPast = !S.showPast; render(); }}>{S.showPast ? 'Hide' : 'Show'} past appointments ({past.length})</button>
       {S.showPast && <div className="list" style={{ marginTop: 8 }}>{past.map((a) => <ApptRow key={a.id} a={a} />)}</div>}</section>}

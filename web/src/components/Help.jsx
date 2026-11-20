@@ -22,31 +22,31 @@ export default function Help() {
       <nav className="toc" aria-label="On this page">{TOC.map(([id, t]) => <a key={id} href={'#h-' + id} onClick={(ev) => jump(ev, 'h-' + id)}>{t}</a>)}</nav></section>
 
     <Sec id="feed" title="Next feed suggestion">
-      <p>The card on Today suggests around when the next feed might be, what her bottles usually are, and a daily milk guide.</p>
+      <p>The card on Today suggests around when the next feed might be, what the baby's bottles usually are, and a daily milk guide.</p>
       <p className="warn"><b>It's just a suggestion.</b> Feed when the baby shows hunger, and let them stop when they're full. Babies drink more on some days than others, for example during a growth spurt. Ask the consultatiebureau or your huisarts what daily amount is right for your baby.</p>
-      <h3>1. Around when: the usual interval for her age (new babies)</h3>
+      <h3>1. Around when: the usual interval for the baby's age (new babies)</h3>
       <p>Until about 5 feeds are logged, the app uses the usual interval for the baby's age. Babies feed about 10 times a day as newborns, falling to about 6 times a day by 6 months.</p>
-      <p className="formula">next feed ≈ start of last feed + 24 hours ÷ usual feeds per day for her age</p>
+      <p className="formula">next feed ≈ start of last feed + 24 hours ÷ usual feeds per day for the baby's age</p>
       <p>For example, a 1-month-old feeds about 9 times a day, so about every 2 h 40 min. Without a birth date the app assumes 8 feeds a day.</p>
-      <h3>2. Around when: her own rhythm</h3>
+      <h3>2. Around when: the baby's own rhythm</h3>
       <p>Once there are about 5 feeds from the last 2 days, the app follows the baby's own rhythm instead.</p>
-      <p className="formula">next feed ≈ start of last feed + her usual gap</p>
+      <p className="formula">next feed ≈ start of last feed + the baby's usual gap</p>
       <ul>
-        <li><b>Usual gap:</b> the middle value (median) of the times between her feeds over the last 2 days.</li>
-        <li><b>Bottle size:</b> when at least 5 of her measured bottles were followed by another feed, the app learns how long a bottle usually lasts her (ml per hour). A bigger bottle then moves the suggestion a little later and a smaller one a little earlier, within 0.6 to 1.5 times her usual gap and never less than 1.5 hours.</li>
+        <li><b>Usual gap:</b> the middle value (median) of the times between the baby's feeds over the last 2 days.</li>
+        <li><b>Bottle size:</b> when at least 5 of the baby's measured bottles were followed by another feed, the app learns how long a bottle usually lasts the baby (ml per hour). A bigger bottle then moves the suggestion a little later and a smaller one a little earlier, within 0.6 to 1.5 times the baby's usual gap and never less than 1.5 hours.</li>
         <li>After a breast feed, or a feed without an amount, the usual gap is used.</li>
         <li>Feeds that start within 30 minutes of each other, such as a bottle and a top-up, count as one feed (up to 45 minutes from the first).</li>
       </ul>
-      <h3>3. Her usual bottle</h3>
-      <p className="formula">usual bottle = middle value of her measured bottles in the last 3 days</p>
-      <p>Rounded to 10 ml and shown with the smallest and largest bottle. It needs 3 bottles with an amount. It describes what she has been drinking.</p>
+      <h3>3. The baby's usual bottle</h3>
+      <p className="formula">usual bottle = middle value of the baby's measured bottles in the last 3 days</p>
+      <p>Rounded to 10 ml and shown with the smallest and largest bottle. It needs 3 bottles with an amount. It describes what the baby has been drinking.</p>
       <h3>4. Daily milk guide</h3>
       <p className="formula">daily guide = latest weight × ml per kg</p>
       <ul>
         <li><b>Dutch guidance:</b> about 150 ml per kg of body weight per day for bottle feeding (Voedingscentrum). For example, 4,800 g × 150 = 720 ml a day.</li>
         <li><b>Your doctor's advice:</b> if your consultatiebureau or huisarts gives you a different number, choose it under <b>Baby → Daily milk guide</b>.</li>
-        <li><b>Guide per feed</b> = daily guide ÷ feeds per day (her own rhythm, or the usual number for her age). It's shown as the amount until she has 3 measured bottles of her own.</li>
-        <li>"Today so far" adds up today's bottles with an amount in ml, from midnight. The bar shows how far along the day's guide that is; it isn't a target, and she doesn't have to reach it.</li>
+        <li><b>Guide per feed</b> = daily guide ÷ feeds per day (the baby's own rhythm, or the usual number for their age). It's shown as the amount until the baby has 3 measured bottles.</li>
+        <li>"Today so far" adds up today's bottles with an amount in ml, from midnight. The bar shows how far along the day's guide that is; it isn't a target, and the baby doesn't have to reach it.</li>
         <li>The guide uses the latest weight in Growth. If it's more than 3 weeks old, the card asks for a newer one.</li>
       </ul>
       <p className="note">"Remind me at …" sets a reminder for the suggested time, for every family phone with notifications on.</p>

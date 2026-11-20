@@ -1,15 +1,14 @@
 // "Next feed" suggestion on Today. Follows the baby's own rhythm once there are enough logged feeds;
 // before that, the usual interval for her age. Shows the daily milk guide as an indication only.
 import { DAY, fmtTime, fmtIn, fmtDur, fmtDate, grams } from '../lib/util.js';
-import { nextFeedPlan, GUIDE_SRC, MIN_GAPS } from '../lib/calc.js';
+import { nextFeedPlan, GUIDE_SRC, MIN_GAPS, pron } from '../lib/calc.js';
 import { S, go, openHelp, setDue } from '../store.js';
 
 export default function SuggestCard() {
   const p = nextFeedPlan(S);
   if (!p) return null;
   // Pronouns follow the profile (girl by default).
-  const boy = S.profile.sex === 'boy';
-  const she = boy ? 'he' : 'she', her = boy ? 'his' : 'her', herO = boy ? 'him' : 'her', Her = boy ? 'His' : 'Her';
+  const { she, her, herO, Her } = pron(S);
   const due = p.next <= Date.now();
   const L = p.last;
   const lastTxt = L.ml > 0 ? `${L.ml} ml${L.unm ? ' plus breast' : ''} at ${fmtTime(L.t)}${L.n > 1 ? ' (with top-up)' : ''}` : `breast feed at ${fmtTime(L.t)}`;

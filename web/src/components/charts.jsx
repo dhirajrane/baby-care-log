@@ -82,6 +82,6 @@ export function GrowthChart({ metric }) {
       <text x={Math.min(lx, W - R - 2)} y={ly - 10} textAnchor={lx > W - 70 ? 'end' : 'middle'} style={{ fill: 'var(--ink)', fontWeight: 700, fontSize: 11 }}>{lp.v}{unit}</text>
     </svg></div>
     {ref ? <div className="legend"><span><i style={{ background: 'var(--growth-soft)', border: '1px solid var(--growth)' }}></i>WHO 3rd–97th percentile ({S.profile.sex === 'girl' ? 'girls' : 'boys'})</span><span><i style={{ background: 'var(--growth)', height: 2, verticalAlign: 3 }}></i>median</span></div>
-      : metric === 'kg' ? <p className="footnote">{birth ? 'Reference curves cover the first 12 months.' : 'Add her birth date under Baby to compare against WHO reference curves.'}</p> : null}
+      : metric === 'kg' ? <p className="footnote">{birth ? 'Reference curves cover the first 12 months.' : `Add ${S.profile.sex === 'boy' ? 'his' : 'her'} birth date under Baby to compare against WHO reference curves.`}</p> : null}
   </>;
 }

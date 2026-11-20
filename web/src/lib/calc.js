@@ -3,6 +3,9 @@
 import { DAY, HOUR, dayKey, keyToMs, median, clampN, startOfToday, fmtTemp } from './util.js';
 import { FEED, SIDE, DIAPER, TSITE, NOTE_TAGS, WHO, REP_KINDS, AK_TITLE } from './constants.js';
 
+// Pronouns for the baby, from the profile (girl until set otherwise, like the profile form).
+export const pron = (s) => s.profile.sex === 'boy' ? { she: 'he', her: 'his', herO: 'him', She: 'He', Her: 'His' } : { she: 'she', her: 'her', herO: 'her', She: 'She', Her: 'Her' };
+
 export const feeds = (s) => s.events.filter((e) => e.type === 'feed');
 export const diapers = (s) => s.events.filter((e) => e.type === 'diaper');
 export const temps = (s) => s.events.filter((e) => e.temp != null);

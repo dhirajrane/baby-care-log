@@ -21,7 +21,7 @@ export default function Today() {
   const lastD = diapers(S)[0]; const lastP = S.events.find((e) => e.type === 'pump'); const lt = temps(S)[0];
   const notes = today.filter((e) => e.type === 'note'); const entries = today.filter((e) => e.type !== 'note');
   return <>
-    {!S.profile.name && !S.loading && <section className="card setup"><h2>Start with her name and birth date</h2><p className="sub" style={{ margin: 0, color: 'var(--muted)' }}>Her age and the growth reference curves use these.</p><div><button className="btn" onClick={() => go('baby')}>Add details</button></div></section>}
+    {!S.profile.name && !S.loading && <section className="card setup"><h2>Start with your baby's name and birth date</h2><p className="sub" style={{ margin: 0, color: 'var(--muted)' }}>The age and the growth reference curves use these.</p><div><button className="btn" onClick={() => go('baby')}>Add details</button></div></section>}
     <section className="card">
       {last ? <div className="status"><p className="eyebrow">Last feed</p><div className="big num">{ago(last.t)}</div><div className="sub">{fmtTime(last.t)} · {evTitle(last)}</div>
         {feeds(S).some((f) => f.kind === 'breast') && <div><span className="pill">Next breast: {SIDE[ns]}</span></div>}</div>

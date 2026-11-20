@@ -1,7 +1,7 @@
 // Reminders card on Today, and the overdue alerts and fever banner above every screen.
 import { HOUR, fmtTime, fmtIn, fmtTemp } from '../lib/util.js';
 import { KL } from '../lib/constants.js';
-import { temps, ageMonths } from '../lib/calc.js';
+import { temps, ageMonths, pron } from '../lib/calc.js';
 import { S, openSheet, snooze, setDue, toggleWake, seeFever } from '../store.js';
 
 function openRem(kind) {
@@ -40,7 +40,7 @@ export function Notices() {
     const am = ageMonths(S);
     fever = (
       <div className="alert hot" role="alert"><div><b>{fmtTemp(lt.temp)} at {fmtTime(lt.t)}</b>
-        <div className="sub">{am != null && am < 3 ? 'For a baby younger than 3 months, 38 °C or higher means a doctor should see her straight away. Call your huisarts, or the huisartsenpost outside office hours.' : '38 °C or higher counts as fever. Call your huisarts if you are worried, or the huisartsenpost outside office hours.'}</div></div>
+        <div className="sub">{am != null && am < 3 ? `For a baby younger than 3 months, 38 °C or higher means a doctor should see ${pron(S).herO} straight away. Call your huisarts, or the huisartsenpost outside office hours.` : '38 °C or higher counts as fever. Call your huisarts if you are worried, or the huisartsenpost outside office hours.'}</div></div>
         <div className="rem-btns"><button className="chip" onClick={() => seeFever(lt.id)}>OK</button></div></div>
     );
   }
