@@ -38,11 +38,16 @@ A family baby tracker for Dhiraj's daughter. It logs feeds, diapers, pumping, gr
 - `events.type`: `feed` (kind breast|bottle|formula|solids, side, min, ml), `diaper` (kind wet|dirty|both, color, temp, tempSite), `pump` (side, min, ml), `note` (tags[], note).
 - `growth`: kg (stored in kg, shown in grams), cm, head.
 - `appts`: kind midwife|cb|vaccination|doctor|other, title, t, place, note, remind (minutes before), planned (expected vaccination date: silent until confirmed).
-- Profile: name, birth (YYYY-MM-DD), sex, mlPerKg (default 150).
+- Profile: name, birth (YYYY-MM-DD), sex, guideSrc (nl|doctor), mlPerKg (default 150).
 - Client sync: `GET /api/sync?since=` (incremental, tombstones, plus family name and whether it has a recovery code), writes via an offline outbox in localStorage, polling every 30 s while visible and on opening the app.
 
 ## Key calculations (see the How it works page for the user-facing version)
-- **Suggested next feed**: daily guide = latest weight × mlPerKg (150, Voedingscentrum). Drinking rate (ml per hour) = median of measured feed ml ÷ hours to the next feed over 4 days (needs 5), blended with the guide rate (guide ÷ 24) and fully her own after 10 measured feeds. Next time = last feed start + last ml ÷ rate, clamped to [1.5 h, 1.5 × age gap]; age feeds/day go from 10 (newborn) to 6 (6 months). Breast or unmeasured feeds use the usual gap. Top-ups within 30 min (max 45 min span) merge into one feed. Amount = what's left of today's guide ÷ feeds left before midnight, clamped to −10%/+20% of the typical feed (guide per feed averaged with her recent bottles). **The guide is not a limit**: the user chose "guide, not hard cap" and "blend her pattern with the guide"; night feeds use the same rhythm.
+- **Next feed suggestion** (`nextFeedPlan` in `calc.js`, card `SuggestCard.jsx`). The user's decision (Nov 2026): it's a **suggestion only**; the card always says "Just a suggestion. Feed when she shows hunger…" and to ask the consultatiebureau/huisarts for the right daily amount. Pronouns follow `profile.sex`.
+  - **Time, new babies** (fewer than 4 gaps between feeds in the last 2 days): last feed + 24 h ÷ usual feeds per day for her age (10 as newborn → 6 at 6 months; 8 without a birth date).
+  - **Time, her own rhythm** (4+ gaps): last feed + median gap of the last 2 days. With 5+ measured bottles followed by a feed, her ml-per-hour rate moves it to last ml ÷ rate, clamped to [max(1.5 h, 0.6 × usual gap), 1.5 × usual gap].
+  - **Her usual bottle**: median of her measured bottles in the last 3 days (needs 3), with min–max.
+  - **Daily milk guide** (kept on purpose as an indication, not a target): latest weight × ml per kg. Source chosen in Baby: Dutch guidance 150 ml/kg (Voedingscentrum) or "our doctor's advice" (`profile.guideSrc = 'doctor'`, `mlPerKg` 100–200). A legacy `mlPerKg` ≠ 150 without `guideSrc` counts as the doctor's. Guide per feed = guide ÷ feeds per day; shown as the amount until she has 3 measured bottles. "Today so far" bar = today's bottle ml vs the guide. The user asked about a WHO option too: not added because the WHO source couldn't be checked from the session; add it only with a verified source.
+  - Top-ups within 30 min (max 45 min span) merge into one feed.
 - **Milk totals**: per calendar day, bottle feeds with ml only.
 - **Temperature**: ≥38.0 °C fever flag; under 3 months, a banner says to have a doctor see her straight away (huisarts / huisartsenpost). <35.8 °C flagged low. Values outside 30–45 °C are rejected.
 - **Vaccinations**: expected dates from the birth date using the Rijksvaccinatieprogramma ages (6–9 weeks, 3, 5, 12, 14 months, 3 years); RSV is left to the GGD.
@@ -68,7 +73,7 @@ curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"   # trigger the reminder
 `npm run build` fails on any syntax error in `web/src`.
 
 ## Known limits and open ideas
-- Multi-family is built (branch work, Nov 2026). Still open before sharing publicly: privacy statement and consent at sign-up, DPIA, EU data location for D1, Cloudflare DPA, the feeding-suggestion wording under EU MDR, a custom domain. iPhone: the home-screen app has its own storage, so people should add it to the home screen before joining.
+- Multi-family is built (branch work, Nov 2026). Still open before sharing publicly: privacy statement and consent at sign-up, DPIA, EU data location for D1, Cloudflare DPA, the feeding-suggestion wording under EU MDR, a custom domain. iPhone: the home-screen app has its own storage, so people should add it to the home screen before joining. Pronouns: only the next-feed card follows `profile.sex`; the rest of the app still says "her".
 - Free Cloudflare limits: 100k Worker requests/day; polling every 30 s per open phone (about 120 requests/hour). D1 free limits are enforced since Sept 2026.
 - Reminders need notifications enabled per phone; on iPhone only from the home-screen app (iOS 16.4+).
 - Planned (not started), discussed with the user: native iOS/Android app via Capacitor for a wider free audience. Prerequisites: multi-family accounts (now built), GDPR work for children's health data (consent, DPIA, EU data location), Apple 4.2 "more than a website", Google Play's 12 testers × 14 days closed test, and a decision on the feeding suggestion under EU MDR (launch without it, reword it as a pattern summary, or get regulatory advice).

@@ -3,12 +3,19 @@ import { HOUR, numOrNull, dayKey, download } from '../lib/util.js';
 import { useState } from 'react';
 import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet } from '../store.js';
 import { Radios, ConfirmButton } from './ui.jsx';
+import { guideFromDoctor } from '../lib/calc.js';
 
 function ProfileCard() {
   const p = S.profile;
+  const [src, setSrc] = useState(guideFromDoctor(p) ? 'doctor' : 'nl');
   const submit = (ev) => {
     ev.preventDefault(); const fd = new FormData(ev.currentTarget);
-    guarded(() => saveProfile({ name: (fd.get('name') || '').trim(), birth: fd.get('birth') || '', sex: fd.get('sex') || 'girl', mlPerKg: Math.min(200, Math.max(100, numOrNull(fd.get('mlPerKg')) || 150)) }), 'Details saved');
+    let perKg = 150;
+    if (src === 'doctor') {
+      perKg = numOrNull(fd.get('mlPerKg'));
+      if (!(perKg >= 100 && perKg <= 200)) { toast('Enter the ml per kg your doctor gave, between 100 and 200.'); return; }
+    }
+    guarded(() => saveProfile({ name: (fd.get('name') || '').trim(), birth: fd.get('birth') || '', sex: fd.get('sex') || 'girl', guideSrc: src, mlPerKg: Math.round(perKg) }), 'Details saved');
   };
   // key: refill the form when the profile arrives from the server
   return (
@@ -16,9 +23,10 @@ function ProfileCard() {
       <h2>About her</h2>
       <label className="field">Name<input name="name" defaultValue={p.name || ''} placeholder="Baby's name" autoComplete="off" /></label>
       <label className="field">Birth date<input name="birth" type="date" defaultValue={p.birth || ''} /></label>
-      <label className="field">Daily milk guide (ml per kg body weight)<input name="mlPerKg" type="number" inputMode="numeric" min="100" max="200" step="5" defaultValue={p.mlPerKg || 150} /></label>
-      <p className="footnote" style={{ margin: '-6px 0 0' }}>Used for the next-feed amount. Dutch guidance is about 150. Change it only if your consultatiebureau advised a different amount.</p>
       <div className="field">Reference curves<Radios name="sex" opts={[['girl', 'Girl'], ['boy', 'Boy']]} value={p.sex || 'girl'} /></div>
+      <div className="field">Daily milk guide<Radios name="guideSrc" opts={[['nl', 'Dutch guidance: 150 ml per kg'], ['doctor', "Our doctor's advice"]]} value={src} onChange={setSrc} /></div>
+      {src === 'doctor' && <label className="field">ml per kg body weight per day<input name="mlPerKg" type="number" inputMode="numeric" min="100" max="200" step="5" defaultValue={guideFromDoctor(p) ? p.mlPerKg : ''} placeholder="e.g. 160" /></label>}
+      <p className="footnote" style={{ margin: '-6px 0 0' }}>Shown on Today as an indication of what's typical: her weight × ml per kg. It's not an amount she has to reach. Ask your consultatiebureau or huisarts what's right for her, and enter their number here if they give you one.</p>
       <div><button className="btn" type="submit">Save details</button></div>
     </form></section>
   );

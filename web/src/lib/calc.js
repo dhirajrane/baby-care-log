@@ -73,7 +73,7 @@ export function feedGap(list) {
 }
 
 // ---------- next feed suggestion ----------
-// Guide: about 150 ml per kg body weight per day (Voedingscentrum/GGD); ~10 feeds per 24 h as a newborn, ~6 around 6 months.
+// Based only on the baby's own logged feeds. No weight-based target: it's a suggestion, not an amount to reach.
 export function latestWeight(s) { const g = s.growth.find((x) => x.kg != null); return g ? { kg: +g.kg, t: g.t } : null; }
 
 // Feeds that start within 30 min of the previous one (bottle + top-up) count as one feed.
@@ -89,49 +89,55 @@ export function feedSessions(list) {
   return out;
 }
 
+export const MIN_GAPS = 4; // gaps between feeds needed in the last 2 days (about 5 feeds)
+export const MIN_BOTTLES = 3; // measured bottles needed in the last 3 days for "her usual bottle"
+export const MIN_PAIRS = 5; // measured bottles followed by another feed, to adjust the time to the bottle size
+export const GUIDE_SRC = { nl: 'Dutch guidance from the Voedingscentrum', doctor: "your doctor's or consultatiebureau's advice" };
+
+// Typical feeds per 24 hours by age: about 10 as a newborn, falling to about 6 at 6 months (Voedingscentrum/GGD).
+export function ageFeedsPerDay(s) { const am = ageMonths(s); return am == null ? 8 : clampN(10 - am / 6 * 4, 6, 10); }
+// A number set before the choice existed (anything other than 150) counts as the doctor's advice.
+export const guideFromDoctor = (p) => (p.guideSrc === 'doctor' || (!p.guideSrc && +p.mlPerKg && +p.mlPerKg !== 150)) && +p.mlPerKg >= 100;
+// Daily milk guide: latest weight × ml per kg (Dutch guidance 150, or the number the family's doctor gave).
+export function dailyGuide(s) {
+  const w = latestWeight(s); if (!w) return null;
+  const doctor = guideFromDoctor(s.profile);
+  const perKg = doctor ? +s.profile.mlPerKg : 150;
+  return { ml: Math.round(w.kg * perKg / 10) * 10, perKg, src: doctor ? 'doctor' : 'nl', weight: w };
+}
+
+// Suggests around when the next feed may be. With enough of her own feeds it follows her rhythm ('pattern');
+// before that it uses the usual interval for her age ('age'), for new parents. Never a target to reach.
 export function nextFeedPlan(s) {
   const fs = feeds(s).filter((e) => e.kind !== 'solids');
   if (!fs.length) return null;
-  const now = Date.now(); const am = ageMonths(s); const H = HOUR;
-  const ageFeeds = am == null ? 8 : clampN(10 - am / 6 * 4, 6, 10); const ageGap = 24 * H / ageFeeds;
-  const minGap = 1.5 * H, maxGap = ageGap * 1.5;
+  const now = Date.now(); const H = HOUR;
   const ses = feedSessions(fs.filter((e) => e.t > now - 4 * DAY));
-  // Her usual gap between feeds over the last 2 days.
+  const last = ses.length ? ses[ses.length - 1] : feedSessions([fs[0]])[0];
   const gaps = [];
   for (let i = 1; i < ses.length; i++) { if (ses[i].t < now - 2 * DAY) continue; const g = ses[i].t - ses[i - 1].t; if (g >= 45 * 60e3 && g <= 8 * H) gaps.push(g); }
-  const usualGap = gaps.length >= 4 ? clampN(median(gaps), ageGap * 0.6, maxGap) : ageGap;
-  // How many ml she drinks per hour of gap, learned from fully measured feeds followed by another feed.
-  const pairs = [];
-  for (let i = 0; i < ses.length - 1; i++) { const x = ses[i]; if (x.ml > 0 && !x.unm) { const g = (ses[i + 1].t - x.t) / H; if (g >= 0.75 && g <= 8) pairs.push(x.ml / g); } }
-  const learnedRate = pairs.length >= 5 ? median(pairs) : null;
-  const w = latestWeight(s); const perKg = +s.profile.mlPerKg || 150; const target = w ? Math.round(w.kg * perKg) : null;
-  const guideRate = target ? target / 24 : null;
-  // Combine her own pattern with the weight guide: the more measured feeds, the more her pattern counts.
-  const k = Math.min(1, pairs.length / 10); let rate = null, rateSrc = null;
-  if (learnedRate && guideRate) { rate = k * learnedRate + (1 - k) * guideRate; rateSrc = k >= 1 ? 'her' : 'blend'; }
-  else if (learnedRate) { rate = learnedRate; rateSrc = 'her'; } else if (guideRate) { rate = guideRate; rateSrc = 'guide'; }
-  const last = ses[ses.length - 1]; let gap, gapSrc;
-  if (rate && last.ml > 0 && !last.unm) { gap = clampN(last.ml / rate * H, minGap, maxGap); gapSrc = 'amount'; }
-  else { gap = usualGap; gapSrc = gaps.length >= 4 ? 'usual' : 'age'; }
-  const next = last.t + gap;
-  const plan = { next, gap, gapSrc, last, rate, rateSrc, pairs: pairs.length, usualGap };
-  if (!target) return plan;
-  // Typical amount per feed: weight guide spread over her feeds per day, blended with her recent bottles.
-  const guidePer = target / (24 * H / usualGap);
-  const measuredRecent = ses.filter((x) => x.t > now - 3 * DAY && x.ml > 0 && !x.unm).map((x) => x.ml);
-  const avg = measuredRecent.length >= 3 ? measuredRecent.reduce((a, b) => a + b, 0) / measuredRecent.length : null;
-  const perFeed = avg ? (avg + guidePer) / 2 : guidePer;
-  // What's left of the day's guide, spread over the feeds that fit before midnight.
-  const at = Math.max(next, now); const tk = dayKey(at); const newDay = tk !== dayKey(now);
-  const day = ses.filter((x) => dayKey(x.t) === tk);
-  const measured = day.reduce((a, x) => a + x.ml, 0); const unmOnly = day.filter((x) => x.ml === 0).length;
-  const counted = Math.round(measured + unmOnly * perFeed);
-  const remaining = target - counted; const reached = remaining <= 0;
-  const stepGap = clampN(perFeed / rate * H, minGap, maxGap);
-  const left = Math.max(1, Math.floor((keyToMs(tk) + DAY - at) / stepGap) + 1);
-  // Behind on the guide: up to 20% more. Ahead of it: at most 10% less, because the guide is not a limit.
-  const ml = Math.max(10, Math.round(clampN(reached ? perFeed * 0.9 : remaining / left, perFeed * 0.9, perFeed * 1.2) / 10) * 10);
-  Object.assign(plan, { ml, target, perKg, weight: w, perFeed: Math.round(perFeed / 5) * 5, guidePer: Math.round(guidePer / 5) * 5, recentAvg: avg ? Math.round(avg) : null, counted, measured, unmOnly, remaining: Math.max(0, remaining), left, reached, newDay });
+  const bottles = ses.filter((x) => x.t > now - 3 * DAY && x.ml > 0 && !x.unm).map((x) => x.ml);
+  const ageFeeds = ageFeedsPerDay(s); const ageGap = 24 * H / ageFeeds;
+  const plan = { last, gapCount: gaps.length, bottleCount: bottles.length, ageFeeds, ageGap, hasBirth: !!s.profile.birth };
+  if (gaps.length >= MIN_GAPS) {
+    const usualGap = median(gaps);
+    // How long a bottle lasts her: ml per hour until the next feed, from her own measured bottles.
+    const pairs = [];
+    for (let i = 0; i < ses.length - 1; i++) { const x = ses[i]; if (x.ml > 0 && !x.unm) { const g = (ses[i + 1].t - x.t) / H; if (g >= 0.75 && g <= 8) pairs.push(x.ml / g); } }
+    const rate = pairs.length >= MIN_PAIRS ? median(pairs) : null;
+    let gap = usualGap, gapSrc = 'usual';
+    if (rate && last.ml > 0 && !last.unm) { gap = clampN(last.ml / rate * H, Math.max(1.5 * H, usualGap * 0.6), usualGap * 1.5); gapSrc = 'amount'; }
+    Object.assign(plan, { mode: 'pattern', next: last.t + gap, gap, gapSrc, usualGap, rate, pairs: pairs.length, feedsPerDay: 24 * H / usualGap });
+  } else {
+    Object.assign(plan, { mode: 'age', next: last.t + ageGap, gap: ageGap, gapSrc: 'age', feedsPerDay: ageFeeds });
+  }
+  if (bottles.length >= MIN_BOTTLES) Object.assign(plan, { ml: Math.max(10, Math.round(median(bottles) / 10) * 10), mlMin: Math.min(...bottles), mlMax: Math.max(...bottles) });
+  const guide = dailyGuide(s);
+  if (guide) {
+    const today = dayKey(now);
+    const soFar = s.events.filter((e) => e.type === 'feed' && (e.kind === 'bottle' || e.kind === 'formula') && e.ml && dayKey(e.t) === today).reduce((a, e) => a + (+e.ml || 0), 0);
+    Object.assign(plan, { guide, guidePerFeed: Math.max(10, Math.round(guide.ml / plan.feedsPerDay / 10) * 10), soFar });
+  }
   return plan;
 }
 

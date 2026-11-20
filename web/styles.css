@@ -270,3 +270,5 @@ nav.tabs button[aria-current="page"]{color:var(--feed)}
 .invite-link{font-size:13px;background:var(--surface-2);border-radius:10px;padding:8px 10px;overflow-wrap:anywhere;margin:8px 0 0}
 .danger-zone{border-color:var(--line)}
 .sub-h{font-family:var(--f-display);font-size:16px;margin:18px 0 6px}
+.sg-note{margin:12px 0 0;background:var(--feed-soft);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.45}
+.sg-note b{color:var(--feed)}

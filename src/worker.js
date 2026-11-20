@@ -424,7 +424,7 @@ async function handleApi(req, env, url) {
   if (path === '/profile' && method === 'PUT') {
     const b = await readBody(req);
     const mlPerKg = Number(b.mlPerKg);
-    await fkvSet(env, fam, 'profile', { name: String(b.name || '').slice(0, 60), birth: String(b.birth || '').slice(0, 10), sex: b.sex === 'boy' ? 'boy' : 'girl', mlPerKg: mlPerKg >= 100 && mlPerKg <= 200 ? Math.round(mlPerKg) : 150 });
+    await fkvSet(env, fam, 'profile', { name: String(b.name || '').slice(0, 60), birth: String(b.birth || '').slice(0, 10), sex: b.sex === 'boy' ? 'boy' : 'girl', guideSrc: b.guideSrc === 'doctor' ? 'doctor' : 'nl', mlPerKg: mlPerKg >= 100 && mlPerKg <= 200 ? Math.round(mlPerKg) : 150 });
     return json({ ok: true });
   }
   if (path === '/reminders' && method === 'PUT') {

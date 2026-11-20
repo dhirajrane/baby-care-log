@@ -4,7 +4,7 @@ import { S, render, toast } from '../store.js';
 
 const Src = ({ k }) => <a href={HELP_SRC[k][1]} target="_blank" rel="noopener">{HELP_SRC[k][0]}</a>;
 const Sec = ({ id, title, children }) => <section className="card help" id={'h-' + id}><h2>{title}</h2>{children}</section>;
-const TOC = [['feed', 'Suggested next feed'], ['milk', 'Milk totals'], ['rem', 'Reminders'], ['cal', 'Appointments and vaccinations'], ['growth', 'Growth charts'], ['temp', 'Temperature'], ['notes', 'Day notes'], ['report', 'Visit report'], ['data', 'Your data'], ['src', 'Sources']];
+const TOC = [['feed', 'Next feed suggestion'], ['milk', 'Milk totals'], ['rem', 'Reminders'], ['cal', 'Appointments and vaccinations'], ['growth', 'Growth charts'], ['temp', 'Temperature'], ['notes', 'Day notes'], ['report', 'Visit report'], ['data', 'Your data'], ['src', 'Sources']];
 
 function back() { S.tab = S.prevTab || 'today'; if (location.pathname !== '/') history.replaceState(null, '', '/'); render(); window.scrollTo(0, 0); }
 async function copy() { const u = location.origin + '/help'; try { await navigator.clipboard.writeText(u); toast('Link copied: ' + u); } catch (e) { toast(u); } }
@@ -21,32 +21,35 @@ export default function Help() {
       <p className="warn">The app is a diary with helpful estimates. It is not medical advice. Follow your baby's hunger and fullness cues, and ask the consultatiebureau, huisarts or midwife if you're unsure.</p>
       <nav className="toc" aria-label="On this page">{TOC.map(([id, t]) => <a key={id} href={'#h-' + id} onClick={(ev) => jump(ev, 'h-' + id)}>{t}</a>)}</nav></section>
 
-    <Sec id="feed" title="Suggested next feed">
-      <p>The card on Today suggests when the next feed is likely and roughly how much to offer. It combines a general guideline based on weight with the baby's own logged pattern.</p>
-      <h3>1. Daily guide</h3>
-      <p className="formula">daily guide = latest weight × 150 ml per kg</p>
-      <p>For example, 4,800 g × 150 = 720 ml a day. Dutch guidance for bottle feeding uses about 150 ml per kg of body weight per day. You can change the number in <b>Baby → Daily milk guide</b> if your consultatiebureau gives a different figure. It's a guide, not a limit: some days babies drink more, especially during growth spurts.</p>
-      <h3>2. How much the baby drinks per hour</h3>
-      <p>For every measured bottle in the last 4 days that was followed by another feed, the app divides the amount by the hours until the next feed. The middle value (median) of those is the baby's drinking rate, for example 34 ml per hour. It needs at least 5 measured feeds.</p>
-      <p>The baby's own rate is combined with the guide rate (daily guide ÷ 24 hours). With few logged bottles the guide counts most. The baby's own pattern counts more with each measured feed and takes over completely after 10.</p>
-      <h3>3. Next feed time</h3>
-      <p className="formula">next feed = start of last feed + last amount ÷ drinking rate</p>
-      <p>So a bigger bottle pushes the next feed later: at 34 ml per hour, 120 ml lasts about 3½ hours and 60 ml about 1¾ hours.</p>
+    <Sec id="feed" title="Next feed suggestion">
+      <p>The card on Today suggests around when the next feed might be, what her bottles usually are, and a daily milk guide.</p>
+      <p className="warn"><b>It's just a suggestion.</b> Feed when the baby shows hunger, and let them stop when they're full. Babies drink more on some days than others, for example during a growth spurt. Ask the consultatiebureau or your huisarts what daily amount is right for your baby.</p>
+      <h3>1. Around when: the usual interval for her age (new babies)</h3>
+      <p>Until about 5 feeds are logged, the app uses the usual interval for the baby's age. Babies feed about 10 times a day as newborns, falling to about 6 times a day by 6 months.</p>
+      <p className="formula">next feed ≈ start of last feed + 24 hours ÷ usual feeds per day for her age</p>
+      <p>For example, a 1-month-old feeds about 9 times a day, so about every 2 h 40 min. Without a birth date the app assumes 8 feeds a day.</p>
+      <h3>2. Around when: her own rhythm</h3>
+      <p>Once there are about 5 feeds from the last 2 days, the app follows the baby's own rhythm instead.</p>
+      <p className="formula">next feed ≈ start of last feed + her usual gap</p>
       <ul>
-        <li>The gap is kept between <b>1.5 hours</b> and <b>1.5 × the usual gap for the baby's age</b>, so one odd feed can't give an unrealistic time. Babies feed about 10 times a day as newborns, falling to about 6 times by 6 months.</li>
+        <li><b>Usual gap:</b> the middle value (median) of the times between her feeds over the last 2 days.</li>
+        <li><b>Bottle size:</b> when at least 5 of her measured bottles were followed by another feed, the app learns how long a bottle usually lasts her (ml per hour). A bigger bottle then moves the suggestion a little later and a smaller one a little earlier, within 0.6 to 1.5 times her usual gap and never less than 1.5 hours.</li>
+        <li>After a breast feed, or a feed without an amount, the usual gap is used.</li>
         <li>Feeds that start within 30 minutes of each other, such as a bottle and a top-up, count as one feed (up to 45 minutes from the first).</li>
-        <li>After a breast feed, or any feed without an amount, the app uses the baby's usual gap between feeds over the last 2 days instead, or the usual gap for the baby's age if there isn't enough data.</li>
       </ul>
-      <h3>4. Amount for the next feed</h3>
-      <p><b>Typical feed:</b> the daily guide spread over the baby's feeds per day, averaged with the baby's recent measured bottles (last 3 days).</p>
-      <p className="formula">suggested amount = what's left of today's guide ÷ feeds left before midnight</p>
+      <h3>3. Her usual bottle</h3>
+      <p className="formula">usual bottle = middle value of her measured bottles in the last 3 days</p>
+      <p>Rounded to 10 ml and shown with the smallest and largest bottle. It needs 3 bottles with an amount. It describes what she has been drinking.</p>
+      <h3>4. Daily milk guide</h3>
+      <p className="formula">daily guide = latest weight × ml per kg</p>
       <ul>
-        <li>The result stays between <b>10% less</b> and <b>20% more</b> than the typical feed, so it never suggests a huge or tiny bottle just to reach a number.</li>
-        <li>Breast feeds and feeds without an amount count as one typical feed in today's total.</li>
-        <li>Once today's guide is reached, the card says so and suggests following the baby's cues.</li>
-        <li>If the next feed falls after midnight, a new day starts and the total begins again.</li>
+        <li><b>Dutch guidance:</b> about 150 ml per kg of body weight per day for bottle feeding (Voedingscentrum). For example, 4,800 g × 150 = 720 ml a day.</li>
+        <li><b>Your doctor's advice:</b> if your consultatiebureau or huisarts gives you a different number, choose it under <b>Baby → Daily milk guide</b>.</li>
+        <li><b>Guide per feed</b> = daily guide ÷ feeds per day (her own rhythm, or the usual number for her age). It's shown as the amount until she has 3 measured bottles of her own.</li>
+        <li>"Today so far" adds up today's bottles with an amount in ml, from midnight. The bar shows how far along the day's guide that is; it isn't a target, and she doesn't have to reach it.</li>
+        <li>The guide uses the latest weight in Growth. If it's more than 3 weeks old, the card asks for a newer one.</li>
       </ul>
-      <p className="note">Weight comes from the latest measurement in Growth. If it's more than 3 weeks old, the card asks for a newer one. Without a weight, the card still suggests a time but no amount.</p>
+      <p className="note">"Remind me at …" sets a reminder for the suggested time, for every family phone with notifications on.</p>
     </Sec>
 
     <Sec id="milk" title="Milk totals">
@@ -62,7 +65,7 @@ export default function Help() {
       <ul>
         <li><b>Automatic:</b> when turned on in Baby, logging a feed or pumping session sets the next reminder that many hours after the <b>start time</b> of what you logged. Whoever logs it, the reminder is shared by the whole family.</li>
         <li><b>One-off:</b> after a feed or pumping session you can pick 2, 2½, 3 or 4 hours, a custom number of hours, or an exact clock time. A time that has already passed today is set for tomorrow.</li>
-        <li><b>Suggested time:</b> "Remind me at …" on the Suggested next feed card sets a reminder for that time.</li>
+        <li><b>Suggested time:</b> "Remind me at …" on the Next feed card sets a reminder for that time.</li>
         <li>The server checks every minute and sends a notification to every phone that has notifications turned on, even when the app is closed. A reminder more than 2 hours late is skipped rather than sent.</li>
         <li><b>Snooze</b> moves a reminder 15 minutes later.</li>
       </ul>
