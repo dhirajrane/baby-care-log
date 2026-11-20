@@ -9,6 +9,8 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs && wrangler dev --test-scheduled",
     "deploy": "node scripts/build.mjs && wrangler deploy",
+    "deploy:staging": "node scripts/build.mjs && wrangler deploy --env staging",
+    "dev:staging": "node scripts/build.mjs && wrangler dev --env staging --test-scheduled",
     "test": "node test/e2e.mjs && node test/appts.mjs && node test/families.mjs",
     "test:browser": "node test/browser.mjs",
     "test:migrate": "node test/migrate.mjs"

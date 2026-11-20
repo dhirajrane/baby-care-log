@@ -547,6 +547,16 @@ async function handleApi(req, env, url) {
   return fail(404, 'not_found');
 }
 
+// The staging copy shows a banner and has its own home-screen name, so it can't be mistaken for the real log.
+function markStaging(path, asset, body) {
+  if (asset === ASSETS['/']) return body
+    .replace('<meta name="apple-mobile-web-app-title" content="Baby Log">', '<meta name="apple-mobile-web-app-title" content="Baby Log TEST">')
+    .replace('<title>Baby Care Log</title>', '<title>Baby Care Log (staging)</title>')
+    .replace('<div id="root"></div>', '<div style="position:sticky;top:0;z-index:50;background:#b3261e;color:#fff;font:600 13px system-ui,sans-serif;text-align:center;padding:calc(4px + env(safe-area-inset-top,0px)) 8px 4px">Staging copy for testing · not your real log</div><div id="root"></div>');
+  if (path === '/manifest.webmanifest') return body.replace('"name": "Baby Care Log"', '"name": "Baby Care Log (staging)"').replace('"short_name": "Baby Log"', '"short_name": "Baby Log TEST"');
+  return body;
+}
+
 function setupHelp(message) {
   return new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Baby Care Log · setup</title>
 <body style="font-family:system-ui;max-width:520px;margin:40px auto;padding:0 16px;line-height:1.5"><h1>Almost there</h1><p>${message}</p>
@@ -566,7 +576,8 @@ export default {
     if (!env.DB) return setupHelp('The app is running, but it isn’t connected to its database yet.');
     const asset = ASSETS[url.pathname] || (req.method === 'GET' && !url.pathname.includes('.') ? ASSETS['/'] : null);
     if (!asset) return new Response('Not found', { status: 404 });
-    const body = asset.b64 ? Uint8Array.from(atob(asset.body), (c) => c.charCodeAt(0)) : asset.body;
+    let body = asset.b64 ? Uint8Array.from(atob(asset.body), (c) => c.charCodeAt(0)) : asset.body;
+    if (env.APP_ENV === 'staging') body = markStaging(url.pathname, asset, body);
     return new Response(body, { headers: { 'content-type': asset.type, 'cache-control': asset.cache || 'no-cache' } });
   },
   async scheduled(event, env, ctx) {

@@ -53,6 +53,12 @@ When a reminder is due, every phone with notifications on gets an alert, even wi
 - **iPhone requirement:** notifications need iOS 16.4 or newer.
 - **If a deploy fails** with a database error, check that the ID in `wrangler.toml` matches the one in D1.
 
+## Staging copy (for trying changes first)
+A second Worker, `baby-care-log-staging`, with its **own database**, so tests never touch the real log. It shows a red "Staging copy" banner and installs as "Baby Log TEST".
+1. **Storage & Databases → D1 → Create** a database named `baby-care-log-staging`, and put its ID in `wrangler.toml` under `[env.staging]`.
+2. **Workers & Pages → Create → Import a repository**, pick this repository again, name it `baby-care-log-staging`. Set the branch to the one you're testing, keep the build command `node scripts/build.mjs`, and set the deploy command to `npx wrangler deploy --env staging`.
+3. In the **real** Worker (`baby-care-log`) → **Settings → Build → Branch control**, turn off builds for non-production branches. Otherwise Cloudflare makes preview versions of other branches that use the real database.
+
 ## For developers
 ```
 npm install
