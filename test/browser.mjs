@@ -142,7 +142,7 @@ check(await p1.locator('button:has-text("Start using the log")').isDisabled(),'c
 await shot(p1,'recovery');
 await p1.locator('label:has-text("I\'ve saved the recovery code")').click();await p1.locator('button:has-text("Start using the log")').click();await p1.waitForTimeout(800);
 check(await p1.locator('nav.tabs').isVisible(),'in the app');
-check(/Start with her name/.test(await p1.locator('main').textContent()),'empty-family prompt');
+check(/Start with your baby's name/.test(await p1.locator('main').textContent()),'empty-family prompt');
 // log a feed so the joiner has something to see
 await p1.locator('.quick button:has-text("Wet now")').click();await p1.waitForTimeout(1200);
 // invite
