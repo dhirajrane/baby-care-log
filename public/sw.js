@@ -1,5 +1,5 @@
 // Baby Care Log service worker: offline app shell + reminder notifications
-const CACHE = 'babylog-shell-v2';
+const CACHE = 'babylog-shell-v3';
 const SHELL = ['/', '/app.js', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png', '/apple-touch-icon.png'];
 
 self.addEventListener('install', (event) => {
@@ -42,6 +42,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(d.title || 'Baby Care Log', options));
 });
 
+// This phone's device token, saved by the app for the Snooze button.
 async function familyKey() {
   try { const c = await caches.open('babylog-key'); const r = await c.match('/__key'); return r ? await r.text() : ''; } catch (e) { return ''; }
 }
@@ -54,7 +55,7 @@ self.addEventListener('notificationclick', (event) => {
     if (event.action === 'snooze' && data.kind) {
       const key = await familyKey();
       try {
-        await fetch('/api/snooze', { method: 'POST', headers: { 'content-type': 'application/json', 'x-family-key': key }, body: JSON.stringify({ kind: data.kind, minutes: 15 }) });
+        await fetch('/api/snooze', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify({ kind: data.kind, minutes: 15 }) });
         return;
       } catch (e) { /* fall through and open the app */ }
     }

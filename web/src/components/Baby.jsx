@@ -1,6 +1,7 @@
 // Baby tab: profile, automatic reminders, notifications on this phone, and family/account settings.
 import { HOUR, numOrNull, dayKey, download } from '../lib/util.js';
-import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush } from '../store.js';
+import { useState } from 'react';
+import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet } from '../store.js';
 import { Radios, ConfirmButton } from './ui.jsx';
 
 function ProfileCard() {
@@ -56,7 +57,7 @@ function NotifyCard() {
   else body = <><p style={{ margin: 0 }}>Get a notification on this phone when a feed or pumping reminder is due, even with the app closed.</p><div style={{ marginTop: 10 }}><button className="btn" disabled={PUSH.busy} onClick={enablePush}>{PUSH.busy ? 'Turning on…' : 'Turn on notifications'}</button></div></>;
   return (
     <section className="card"><p className="eyebrow">Notifications on this phone</p>{body}
-      <p className="footnote">Each family member turns this on once on their own phone.{S.devices != null ? ` ${S.devices} phone${S.devices === 1 ? ' is' : 's are'} getting reminders.` : ''}</p></section>
+      <p className="footnote">Each family member turns this on once on their own phone.{S.pushPhones != null ? ` ${S.pushPhones} phone${S.pushPhones === 1 ? ' is' : 's are'} getting reminders.` : ''}</p></section>
   );
 }
 
@@ -73,15 +74,51 @@ async function importData(ev) {
   } catch (e) { toast(e && e.code === 'offline' ? 'No connection. Try again when online.' : "That file isn't a Baby Care Log export."); }
   ev.target.value = '';
 }
-async function copyLink() { const u = location.origin + '/'; try { await navigator.clipboard.writeText(u); toast('Link copied. Send it with the family key.'); } catch (e) { toast(u); } }
+const seen = (ms) => { const d = Math.floor((Date.now() - ms) / 864e5); return d < 1 ? 'active today' : d === 1 ? 'active yesterday' : `active ${d} days ago`; };
+
+async function shareInvite() {
+  const inv = S.invite || await makeInvite(); if (!inv) return;
+  const text = `Join ${AUTH.family || 'our family'} on Baby Care Log: ${inv.url}`;
+  if (navigator.share) { try { await navigator.share({ title: 'Baby Care Log invite', text, url: inv.url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(inv.url); toast('Invite link copied. Send it to the person you want to invite.'); } catch (e) {}
+}
+async function copyInvite() { try { await navigator.clipboard.writeText(S.invite.url); toast('Invite link copied'); } catch (e) { toast(S.invite.url); } }
 
 function FamilyCard() {
+  const fam = S.family; const list = S.devicesList;
+  const [editing, setEditing] = useState(false);
   return (
     <section className="card"><p className="eyebrow">Family</p>
-      <p style={{ margin: 0 }}>Signed in as <b>{AUTH.member || 'family member'}</b>{AUTH.family ? ` · ${AUTH.family}` : ''}. Family members join by opening this app's web address and entering the family key.</p>
-      <div className="rem-btns" style={{ marginTop: 10 }}><button className="chip" onClick={copyLink}>Copy app link</button><button className="chip" onClick={exportData}>Export data</button>
+      {editing ? <form className="setup" onSubmit={(ev) => { ev.preventDefault(); const n = String(new FormData(ev.currentTarget).get('familyName') || '').trim(); if (n) { renameFamily(n); setEditing(false); } }}>
+        <label className="field">Family name<input name="familyName" defaultValue={AUTH.family} maxLength={60} required autoFocus /></label>
+        <div className="rem-btns"><button className="chip" type="submit">Save</button><button className="chip" type="button" onClick={() => setEditing(false)}>Cancel</button></div></form>
+        : <p style={{ margin: 0 }}><b>{AUTH.family || 'Your family'}</b> <button className="linkbtn" style={{ fontSize: 13 }} onClick={() => setEditing(true)}>Rename</button><br />Signed in on this phone as <b>{AUTH.member || 'family member'}</b>.</p>}
+
+      <h3 className="sub-h">Invite someone</h3>
+      <p style={{ margin: 0, fontSize: 14 }}>Send an invite link to your partner, a grandparent or a babysitter. They'll see and add the same entries and get the same reminders.</p>
+      <div className="rem-btns" style={{ marginTop: 10 }}><button className="btn" onClick={shareInvite}>{S.invite ? 'Share the invite link' : 'Invite a family member'}</button></div>
+      {S.invite && <><p className="invite-link">{S.invite.url}</p>
+        <div className="rem-btns" style={{ marginTop: 6 }}><button className="chip" onClick={copyInvite}>Copy link</button><button className="chip" onClick={async () => { S.invite = null; await makeInvite(); }}>New link</button></div>
+        <p className="footnote">The link works for one person and expires in {S.invite.days} days. Make a new link for each person.</p></>}
+
+      <h3 className="sub-h">Phones with access</h3>
+      {list == null ? <p className="empty">Loading…</p> : list.map((d) => (
+        <div key={d.id} className="dev"><div><b>{d.member}</b>{d.me ? ' · this phone' : ''}<div className="sub">{seen(d.lastSeen)}{d.push ? ' · reminders on' : ''}</div></div>
+          {!d.me && <ConfirmButton className="chip" armedClass="danger-armed" label="Remove" armedLabel="Tap again to remove" resetAfter={4000} onConfirm={() => removeDevice(d.id)} />}</div>
+      ))}
+      {list && list.length > 0 && <p className="footnote">Remove a phone that's lost or that shouldn't see the log anymore.</p>}
+
+      <h3 className="sub-h">Recovery code</h3>
+      {fam && !fam.hasRecovery ? <div className="alert" style={{ margin: 0 }}><div><b>Make a recovery code</b><div className="sub">If every phone signs out or gets lost, the recovery code is the only way back into your log.</div></div>
+        <div className="rem-btns"><button className="chip" onClick={newRecoveryCode}>Make code</button></div></div>
+        : <><p style={{ margin: 0, fontSize: 14 }}>Gets your family back into the log if every phone signs out or gets lost. It was shown once when it was made.</p>
+          <div className="rem-btns" style={{ marginTop: 8 }}><ConfirmButton className="chip" label="Make a new recovery code" armedLabel="Tap again: the old code stops working" onConfirm={newRecoveryCode} /></div></>}
+
+      <h3 className="sub-h">Your data</h3>
+      <div className="rem-btns"><button className="chip" onClick={exportData}>Export data</button>
         <label className="chip" htmlFor="imp" style={{ cursor: 'pointer' }}>Import data</label><input type="file" id="imp" accept=".json,application/json" hidden onChange={importData} /></div>
-      <div className="rem-btns" style={{ marginTop: 8 }}><ConfirmButton className="chip" label="Sign out on this phone" armedLabel="Tap again to sign out" onConfirm={() => signOut('')} /></div>
+      <div className="rem-btns" style={{ marginTop: 8 }}><ConfirmButton className="chip" label="Sign out on this phone" armedLabel="Tap again to sign out" onConfirm={() => signOut('', true)} />
+        <button className="chip" onClick={() => openSheet('deleteFamily')}>Delete family log</button></div>
       <p className="footnote">{S.events.length} feed, diaper and pumping entries · {S.growth.length} measurements</p></section>
   );
 }

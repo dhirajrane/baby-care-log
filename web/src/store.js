@@ -8,15 +8,18 @@ import { KL } from './lib/constants.js';
 const REM_DEFAULT = { feed: { auto: false, hours: 3 }, pump: { auto: false, hours: 3 }, due: { feed: null, pump: null } };
 export const mergeRem = (d) => ({ feed: { ...REM_DEFAULT.feed, ...((d && d.feed) || {}) }, pump: { ...REM_DEFAULT.pump, ...((d && d.pump) || {}) }, due: { feed: null, pump: null, ...((d && d.due) || {}) }, tz: (d && d.tz) || undefined });
 
-const LS = 'babycarelog.app.v1', LSK = 'babycarelog.key', LSM = 'babycarelog.member', LSF = 'babycarelog.family';
+const LS = 'babycarelog.app.v1', LST = 'babycarelog.token', LSK = 'babycarelog.key', LSM = 'babycarelog.member', LSF = 'babycarelog.family';
 
 export const S = {
   feverSeen: new Set((() => { try { return JSON.parse(lsGet('babycarelog.feverSeen') || '[]'); } catch (e) { return []; } })()),
   openDays: new Set(), hFilter: 'all', rem: mergeRem(null), profile: {}, events: [], growth: [], appts: [],
   showPast: false, tab: 'today', prevTab: null, metric: 'kg', historyDays: 7, loading: true, online: true, devices: null,
   rep: null, sheet: null, toast: null, wake: null, outboxSize: 0,
+  family: null, // {name, hasRecovery} from the server
+  devicesList: null, pushPhones: null, invite: null, recovery: null, // recovery: a new code to show once
 };
-export const AUTH = { key: lsGet(LSK), member: lsGet(LSM) || '', family: lsGet(LSF) || '', status: null, error: '' };
+// token: this phone's device token. legacyKey: the old shared family key, traded for a token on start.
+export const AUTH = { token: lsGet(LST), legacyKey: lsGet(LSK), member: lsGet(LSM) || '', family: lsGet(LSF) || '', status: null, error: '', joinCode: null };
 export const PUSH = { sub: null, busy: false };
 
 // ---------- render subscription ----------
@@ -41,16 +44,16 @@ const tz = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone
 // ---------- API ----------
 export async function api(path, opts = {}) {
   let r;
-  try { r = await fetch('/api' + path, { method: opts.method || 'GET', cache: 'no-store', headers: { 'content-type': 'application/json', 'x-family-key': AUTH.key || '' }, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined }); }
+  try { r = await fetch('/api' + path, { method: opts.method || 'GET', cache: 'no-store', headers: { 'content-type': 'application/json', ...(AUTH.token ? { authorization: 'Bearer ' + AUTH.token } : {}) }, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined }); }
   catch (e) { throw { code: 'offline' }; }
   let data = null; try { data = await r.json(); } catch (e) {}
-  if (r.status === 401 && !opts.noAuth) { signOut('The family key was changed or is wrong. Enter it again.'); throw { code: 'auth' }; }
+  if (r.status === 401 && !opts.noAuth) { signOut('This phone was signed out of the family log. Ask a family member for a new invite link, or use your recovery code.'); throw { code: 'auth' }; }
   if (!r.ok) throw { code: 'http', status: r.status, data };
   return data;
 }
 function enqueue(op) { outbox = outbox.filter((o) => o.path !== op.path); outbox.push(op); lsSave(); flush(); }
 async function flush() {
-  if (flushing || !AUTH.key) return;
+  if (flushing || !AUTH.token) return;
   flushing = true; let changed = false;
   try {
     while (outbox.length) {
@@ -64,7 +67,7 @@ async function flush() {
 function mergeRows(coll, rows) { const map = new Map(S[coll].map((r) => [r.id, r])); rows.forEach((r) => { if (r.deleted) map.delete(r.id); else map.set(r.id, r); }); S[coll] = [...map.values()]; }
 let pulling = false;
 export async function pull() {
-  if (!AUTH.key || pulling) return;
+  if (!AUTH.token || pulling) return;
   pulling = true;
   try {
     await flush();
@@ -72,7 +75,8 @@ export async function pull() {
     const d = await api('/sync?since=' + since);
     if (d.full) { S.events = []; S.growth = []; S.appts = []; }
     mergeRows('events', d.events); mergeRows('growth', d.growth); mergeRows('appts', d.appts || []);
-    S.profile = d.profile || {}; S.rem = mergeRem(d.rem); since = d.now; S.loading = false; S.online = true; sortAll(); lsSave(); checkDue(); render();
+    S.profile = d.profile || {}; S.rem = mergeRem(d.rem);
+    if (d.family) { S.family = d.family; if (AUTH.family !== d.family.name) { AUTH.family = d.family.name; lsSet(LSF, AUTH.family); } } since = d.now; S.loading = false; S.online = true; sortAll(); lsSave(); checkDue(); render();
   } catch (e) { if (e.code !== 'auth') { S.online = false; S.loading = false; render(); } }
   finally { pulling = false; }
 }
@@ -110,35 +114,79 @@ export function toast(msg, undo) {
 export function hideToast() { clearTimeout(toastTimer); S.toast = null; render(); }
 
 // ---------- sign-in ----------
-async function rememberKey(key) {
-  AUTH.key = key; lsSet(LSK, key); lsSet(LSM, AUTH.member); lsSet(LSF, AUTH.family);
-  try { const c = await caches.open('babylog-key'); await c.put('/__key', new Response(key)); } catch (e) {}
+async function rememberToken(token, member, family) {
+  AUTH.token = token; AUTH.member = member; AUTH.family = family || ''; AUTH.error = '';
+  lsSet(LST, token); lsSet(LSM, member); lsSet(LSF, AUTH.family); lsDel(LSK); AUTH.legacyKey = null;
+  // The service worker reads the token from here for the "Snooze 15 min" notification button.
+  try { const c = await caches.open('babylog-key'); await c.put('/__key', new Response(token)); } catch (e) {}
+  S.loading = true; since = 0; render(); pull(); refreshPush();
 }
-export function signOut(msg) {
-  AUTH.key = null; AUTH.error = msg || ''; S.events = []; S.growth = []; S.appts = []; S.profile = {}; S.rem = mergeRem(null); since = 0; outbox = []; S.outboxSize = 0; S.loading = true;
-  lsDel(LSK); lsDel(LS);
+// Signs this phone out. With revoke, the server forgets the phone too (the normal "Sign out" button).
+export async function signOut(msg, revoke) {
+  if (PUSH.sub) { try { await api('/unsubscribe', { method: 'POST', body: { endpoint: PUSH.sub.endpoint }, noAuth: true }); } catch (e) {} try { PUSH.sub.unsubscribe(); } catch (e) {} PUSH.sub = null; }
+  if (revoke) { try { await api('/devices/me', { method: 'DELETE', noAuth: true }); } catch (e) {} }
+  AUTH.token = null; AUTH.error = msg || ''; S.events = []; S.growth = []; S.appts = []; S.profile = {}; S.rem = mergeRem(null); since = 0; outbox = []; S.outboxSize = 0; S.loading = true;
+  S.family = null; S.devicesList = null; S.invite = null; S.recovery = null; S.tab = 'today';
+  lsDel(LST); lsDel(LSK); lsDel(LS);
   try { caches.delete('babylog-key'); } catch (e) {}
-  if (PUSH.sub) { try { PUSH.sub.unsubscribe(); } catch (e) {} PUSH.sub = null; }
   loadStatus(); render();
 }
 export async function loadStatus() { try { AUTH.status = await api('/status', { noAuth: true }); } catch (e) { AUTH.status = { error: true }; } render(); }
-// Returns an error message, or '' when signed in.
-export async function submitLogin(setup, { key, member, family }) {
+const errText = (e, map) => e.code === 'offline' ? 'No connection. Check this phone is online.' : (e.status && map[e.status]) || (e.status === 429 ? 'Too many tries. Wait an hour and try again.' : 'Something went wrong. Try again.');
+// Each returns an error message, or '' when this phone is signed in.
+export async function createFamily({ family, member, turnstile }) {
   try {
-    if (setup) {
-      if (key.length < 6) return 'Use at least 6 characters for the family key.';
-      await api('/setup', { method: 'POST', noAuth: true, body: { key, family } });
-      AUTH.family = family;
-    } else {
-      const r = await api('/login', { method: 'POST', noAuth: true, body: { key } }); AUTH.family = r.family || '';
-    }
-    AUTH.member = member; AUTH.error = ''; await rememberKey(key); S.loading = true; since = 0; render(); pull(); refreshPush();
+    const r = await api('/families', { method: 'POST', noAuth: true, body: { family, member, turnstile, tz: tz(), consent: true } });
+    S.recovery = { code: r.recovery, first: true };
+    await rememberToken(r.token, member, r.family);
     return '';
-  } catch (e) {
-    return e.code === 'offline' ? 'No connection. Check this phone is online.' : e.status === 401 ? 'That family key is not right.' : e.status === 409 ? 'This log is already set up. Reload and sign in instead.' : 'Something went wrong. Try again.';
+  } catch (e) { return errText(e, { 403: 'The check that you are not a robot failed. Reload the page and try again.' }); }
+}
+export async function inviteInfo(code) {
+  try { return await api('/invite-info', { method: 'POST', noAuth: true, body: { code } }); }
+  catch (e) { return { error: e.status === 404 ? 'invalid' : e.code === 'offline' ? 'offline' : 'error' }; }
+}
+export async function joinFamily(code, member) {
+  try { const r = await api('/join', { method: 'POST', noAuth: true, body: { code, member } }); AUTH.joinCode = null; await rememberToken(r.token, member, r.family); return ''; }
+  catch (e) { return errText(e, { 404: 'This invite link has expired or was already used. Ask a family member for a new one.' }); }
+}
+export async function recoverFamily(code, member) {
+  try { const r = await api('/recover', { method: 'POST', noAuth: true, body: { code, member } }); await rememberToken(r.token, member, r.family); return ''; }
+  catch (e) { return errText(e, { 401: "That recovery code isn't right. Check it and try again." }); }
+}
+// Phones from before multi-family still hold the shared family key: trade it for this phone's own token.
+export async function upgradeLegacyKey() {
+  try { const r = await api('/legacy-login', { method: 'POST', noAuth: true, body: { key: AUTH.legacyKey, member: AUTH.member || 'Family member' } }); await rememberToken(r.token, AUTH.member || 'Family member', r.family); }
+  catch (e) {
+    if (e.code === 'offline') { setTimeout(upgradeLegacyKey, 30000); return; }
+    lsDel(LSK); AUTH.legacyKey = null; AUTH.error = 'Sign in again: ask a family member for an invite link, or use your recovery code.'; loadStatus(); render();
   }
 }
-export const signedIn = () => !!AUTH.key;
+export const signedIn = () => !!AUTH.token;
+
+// ---------- family members and phones ----------
+export async function loadDevices() { try { const r = await api('/devices'); S.devicesList = r.devices; S.pushPhones = r.pushPhones; render(); } catch (e) {} }
+export async function makeInvite() {
+  try { S.invite = await api('/invites', { method: 'POST' }); render(); return S.invite; }
+  catch (e) { toast(e.code === 'offline' ? 'No connection. Try again when online.' : e.status === 429 ? 'Too many invites today. Try again tomorrow.' : "Couldn't make an invite link. Try again."); return null; }
+}
+export async function removeDevice(id) {
+  try { await api('/devices/' + id, { method: 'DELETE' }); toast('Phone removed. It can no longer see the log.'); loadDevices(); }
+  catch (e) { toast(e.code === 'offline' ? 'No connection. Try again when online.' : "Couldn't remove the phone. Try again."); }
+}
+export async function newRecoveryCode() {
+  try { const r = await api('/recovery-code', { method: 'POST' }); S.recovery = { code: r.recovery, first: false }; if (S.family) S.family.hasRecovery = true; render(); }
+  catch (e) { toast(e.code === 'offline' ? 'No connection. Try again when online.' : "Couldn't make a recovery code. Try again."); }
+}
+export function doneRecovery() { S.recovery = null; render(); window.scrollTo(0, 0); }
+export async function renameFamily(name) {
+  try { await api('/family', { method: 'PUT', body: { name } }); if (S.family) S.family.name = name; AUTH.family = name; lsSet(LSF, name); toast('Family name saved'); render(); }
+  catch (e) { toast(e.code === 'offline' ? 'No connection. Try again when online.' : "Couldn't save the name. Try again."); }
+}
+export async function deleteFamily() {
+  try { await api('/family', { method: 'DELETE', body: { confirm: 'delete' } }); closeSheet(); await signOut('The family log and everything in it was deleted.'); }
+  catch (e) { toast(e.code === 'offline' ? 'No connection. Try again when online.' : "Couldn't delete the log. Try again."); }
+}
 
 // ---------- notifications ----------
 function b64uToBytes(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; const b = atob(s); return Uint8Array.from(b, (c) => c.charCodeAt(0)); }
@@ -177,7 +225,6 @@ export async function testPush() {
   try { const r = await api('/test-push', { method: 'POST', body: { endpoint: PUSH.sub && PUSH.sub.endpoint } }); toast(r.sent ? 'Test sent. It should arrive in a few seconds.' : "The test didn't go through. Turn notifications off and on again."); }
   catch (e) { toast('No connection. Try again when online.'); }
 }
-export async function loadDevices() { try { const r = await api('/devices'); S.devices = r.devices.length; render(); } catch (e) {} }
 
 // ---------- reminders ----------
 export async function afterLog(kind, t) {

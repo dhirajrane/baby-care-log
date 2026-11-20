@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { HOUR, toLocalInput, dayKey, keyToMs, fmtTime, numOrNull, uid, download } from '../lib/util.js';
 import { FEED, SIDE, DIAPER, COLORS, TSITE, NOTE_TAGS, KL, AK, AK_TITLE, REMIND_OPTS } from '../lib/constants.js';
 import { nextSide, icsFor } from '../lib/calc.js';
-import { S, closeSheet, saveRow, removeRow, guarded, toast, afterLog, saveRem, render } from '../store.js';
+import { S, AUTH, closeSheet, saveRow, removeRow, guarded, toast, afterLog, saveRem, render, deleteFamily } from '../store.js';
 import { Radios, Checks, ConfirmButton } from './ui.jsx';
 
 const Close = () => <button type="button" className="x" aria-label="Close" onClick={closeSheet}>×</button>;
@@ -194,11 +194,25 @@ function ApptSheet({ row }) {
   );
 }
 
+// ---------- delete the whole family log ----------
+function DeleteFamilySheet() {
+  const [txt, setTxt] = useState(''); const [busy, setBusy] = useState(false);
+  const ok = txt.trim().toLowerCase() === 'delete';
+  return (
+    <form onSubmit={async (ev) => { ev.preventDefault(); if (!ok) return; setBusy(true); await deleteFamily(); setBusy(false); }}><Head>Delete the family log?</Head>
+      <p style={{ margin: 0 }}>This deletes <b>{AUTH.family || 'your family log'}</b> and everything in it for everyone: all entries, measurements, appointments and reminders. Every phone is signed out. It can't be undone.</p>
+      <p className="footnote" style={{ margin: 0 }}>Want a copy first? Close this and use <b>Export data</b>.</p>
+      <label className="field">Type delete to confirm<input value={txt} onChange={(e) => setTxt(e.target.value)} autoComplete="off" autoCapitalize="off" /></label>
+      <div className="form-actions"><button type="button" className="btn ghost" onClick={closeSheet}>Keep the log</button><button className="btn" type="submit" disabled={!ok || busy} style={{ background: 'var(--danger)' }}>{busy ? 'Deleting…' : 'Delete everything'}</button></div>
+    </form>
+  );
+}
+
 export default function SheetHost() {
   const sh = S.sheet;
   useEffect(() => { const k = (e) => { if (e.key === 'Escape') closeSheet(); }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k); }, []);
   if (!sh) return null;
-  const body = sh.kind === 'rem' ? <RemSheet kind={sh.row.kind} base={sh.row.base} /> : sh.kind === 'appt' ? <ApptSheet row={sh.row} /> : <EntrySheet kind={sh.kind} row={sh.row} />;
+  const body = sh.kind === 'rem' ? <RemSheet kind={sh.row.kind} base={sh.row.base} /> : sh.kind === 'appt' ? <ApptSheet row={sh.row} /> : sh.kind === 'deleteFamily' ? <DeleteFamilySheet /> : <EntrySheet kind={sh.kind} row={sh.row} />;
   return (
     <div className="scrim" onClick={(e) => { if (e.target === e.currentTarget) closeSheet(); }}>
       <div className="sheet" role="dialog" aria-modal="true" key={sh.key}>{body}</div>

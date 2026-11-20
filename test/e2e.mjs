@@ -2,9 +2,10 @@ import http from 'node:http';
 import crypto from 'node:crypto';
 import ece from 'http_ece';
 const B='http://localhost:8787';
-const KEY='sunshine-2026';
+let TOKEN='';
+const IP='10.0.'+Math.floor(Math.random()*250)+'.'+Math.floor(Math.random()*250); // own rate-limit bucket per run
 let ok=0; const check=(c,m)=>{if(!c){console.error('FAIL',m);process.exitCode=1}else{ok++;}};
-const j=async(p,o={})=>{const r=await fetch(B+p,{method:o.method||'GET',headers:{'content-type':'application/json','x-family-key':o.key??KEY},body:o.body?JSON.stringify(o.body):undefined});let d=null;try{d=await r.json()}catch{};return{s:r.status,d}};
+const j=async(p,o={})=>{const r=await fetch(B+p,{method:o.method||'GET',headers:{'content-type':'application/json','cf-connecting-ip':IP,authorization:'Bearer '+(o.token??TOKEN)},body:o.body?JSON.stringify(o.body):undefined});let d=null;try{d=await r.json()}catch{};return{s:r.status,d}};
 
 // fake push service
 const got=[];
@@ -12,14 +13,13 @@ const srv=http.createServer((req,res)=>{const ch=[];req.on('data',c=>ch.push(c))
 const ua=crypto.createECDH('prime256v1');ua.generateKeys();const auth=crypto.randomBytes(16);
 const sub={endpoint:'http://127.0.0.1:9911/push/abc',keys:{p256dh:ua.getPublicKey().toString('base64url'),auth:auth.toString('base64url')}};
 
-check((await j('/api/status')).d.setup===false,'not setup');
-check((await j('/api/setup',{method:'POST',body:{key:'abc',family:'X'}})).s===400,'short key rejected');
-check((await j('/api/setup',{method:'POST',body:{key:KEY,family:'Test family'}})).s===200,'setup');
-check((await j('/api/setup',{method:'POST',body:{key:KEY}})).s===409,'second setup blocked');
-check((await j('/api/login',{method:'POST',body:{key:'nope-nope'}})).s===401,'wrong key');
-check((await j('/api/login',{method:'POST',body:{key:KEY}})).d.family==='Test family','login');
-check((await j('/api/sync',{key:'bad'})).s===401,'auth required');
-
+check((await j('/api/status')).d.ok===true,'status');
+check((await j('/api/families',{method:'POST',body:{family:'Test family'}})).s===400,'name required');
+let c=await j('/api/families',{method:'POST',body:{family:'Test family',member:'Dad'}});
+check(c.s===200&&c.d.token&&/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/.test(c.d.recovery),'family created with token and recovery code');
+TOKEN=c.d.token;
+check((await j('/api/sync',{token:'x'.repeat(43)})).s===401,'auth required');
+check((await j('/api/sync')).d.family.name==='Test family','sync has family name');
 const now=Date.now();
 await j('/api/reminders',{method:'PUT',body:{feed:{auto:true,hours:3},pump:{auto:false,hours:2},due:{feed:null,pump:null},tz:'Europe/Amsterdam'}});
 let r=await j('/api/events/e1',{method:'PUT',body:{type:'feed',kind:'bottle',ml:90,min:20,t:now-60000,note:'good',by:'Dad'}});
@@ -66,7 +66,7 @@ srv.close();
 const srv2=http.createServer((q,s)=>{s.writeHead(410);s.end()}).listen(9911);
 r=await j('/api/test-push',{method:'POST',body:{}});
 check(r.d.gone===1,'410 removes subscription');
-check((await j('/api/devices')).d.devices.length===0,'no devices left');
+check((await j('/api/devices')).d.pushPhones===0,'no push phones left');
 srv2.close();
 // static
 const html=await fetch(B+'/');check((await html.text()).includes('<title>Baby Care Log</title>'),'index served');

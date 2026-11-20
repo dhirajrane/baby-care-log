@@ -2,7 +2,7 @@
 import { ageText } from '../lib/calc.js';
 import { S, useApp, signedIn, go, openSheet, hideToast } from '../store.js';
 import { Notices } from './Reminders.jsx';
-import Login from './Login.jsx';
+import Login, { RecoveryScreen } from './Login.jsx';
 import Today from './Today.jsx';
 import History from './History.jsx';
 import Growth from './Growth.jsx';
@@ -33,6 +33,7 @@ export default function App() {
   let title = 'Baby Care Log', age = '', view;
   if (S.tab === 'help') { title = 'How it works'; view = <Help />; }
   else if (!inApp) view = <Login />;
+  else if (S.recovery) view = <RecoveryScreen />;
   else { title = S.profile.name || 'Baby Care Log'; age = ageText(S); const Screen = SCREENS[S.tab] || Today; view = <Screen />; }
   return <>
     <div className="app">
@@ -40,7 +41,7 @@ export default function App() {
       {inApp && S.tab !== 'help' ? <Notices /> : <div id="notice"></div>}
       <main id="view">{view}</main>
     </div>
-    <nav className="tabs" aria-label="Sections" hidden={!inApp}>
+    <nav className="tabs" aria-label="Sections" hidden={!inApp || !!S.recovery}>
       <div className="logbar" role="group" aria-label="Log">
         {LOG.map(([k, l]) => <button key={k} className={'lb ' + (k === 'diaper' ? 'diaper' : k)} onClick={() => openSheet(k)}><span>+</span>{l}</button>)}
       </div>

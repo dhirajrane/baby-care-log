@@ -115,9 +115,12 @@ export default function Help() {
 
     <Sec id="data" title="Your data">
       <ul>
-        <li>Each family runs its own copy of the app with its own database on Cloudflare. Everyone who signs in with the family key can see and add entries.</li>
+        <li>Each family log is private. Only phones that joined with an invite link, or with the family's recovery code, can see and add entries. Baby → Family lists every phone with access, and you can remove one at any time.</li>
+        <li>An invite link works for one person and expires after 7 days.</li>
+        <li>The recovery code is shown once, when it's made. If every phone signs out or gets lost, it's the only way back in. You can make a new one under Baby → Family; the old one then stops working.</li>
         <li>Entries logged without internet are kept on the phone and sent when it's back online.</li>
         <li>Baby → Export data downloads everything as a file you can keep as a backup or import again.</li>
+        <li>Baby → Delete family log removes the log and everything in it for every member.</li>
       </ul>
     </Sec>
 

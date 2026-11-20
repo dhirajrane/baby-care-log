@@ -1,17 +1,18 @@
-// Appointment reminder checks (run while `npm run dev` is up with a fresh local database).
+// Appointment reminder checks (run while `npm run dev` is up; creates its own family).
 import http from 'node:http';
 import crypto from 'node:crypto';
 import ece from 'http_ece';
-const B = 'http://localhost:8787', KEY = 'sunshine-2026';
+const B = 'http://localhost:8787';
+let TOKEN = ''; const IP = '10.1.' + Math.floor(Math.random() * 250) + '.' + Math.floor(Math.random() * 250);
 let ok = 0; const check = (c, m) => { if (!c) { console.error('FAIL', m); process.exitCode = 1; } else ok++; };
-const j = async (p, o = {}) => { const r = await fetch(B + p, { method: o.method || 'GET', headers: { 'content-type': 'application/json', 'x-family-key': KEY }, body: o.body ? JSON.stringify(o.body) : undefined }); let d = null; try { d = await r.json(); } catch {} return { s: r.status, d }; };
+const j = async (p, o = {}) => { const r = await fetch(B + p, { method: o.method || 'GET', headers: { 'content-type': 'application/json', 'cf-connecting-ip': IP, authorization: 'Bearer ' + TOKEN }, body: o.body ? JSON.stringify(o.body) : undefined }); let d = null; try { d = await r.json(); } catch {} return { s: r.status, d }; };
 const got = [];
 const srv = http.createServer((q, s) => { const c = []; q.on('data', (x) => c.push(x)); q.on('end', () => { got.push(Buffer.concat(c)); s.writeHead(201); s.end(); }); }).listen(9912);
 const ua = crypto.createECDH('prime256v1'); ua.generateKeys(); const auth = crypto.randomBytes(16);
 const sub = { endpoint: 'http://127.0.0.1:9912/p', keys: { p256dh: ua.getPublicKey().toString('base64url'), auth: auth.toString('base64url') } };
 const tick = async () => { await fetch(B + '/__scheduled?cron=*+*+*+*+*'); await new Promise((r) => setTimeout(r, 1500)); };
 
-await j('/api/setup', { method: 'POST', body: { key: KEY, family: 'T' } });
+TOKEN = (await j('/api/families', { method: 'POST', body: { family: 'T', member: 'Dad' } })).d.token;
 await j('/api/subscribe', { method: 'POST', body: { subscription: sub, member: 'Dad' } });
 const now = Date.now(), M = 60000;
 await j('/api/appts/a1', { method: 'PUT', body: { kind: 'cb', title: '8-week check-up', t: now + 59 * M, place: 'CB Centrum', remind: [1440, 60] } }); // 1 h reminder due; 1 day one is >2 h old, skipped

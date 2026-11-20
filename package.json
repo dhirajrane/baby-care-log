@@ -9,7 +9,9 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs && wrangler dev --test-scheduled",
     "deploy": "node scripts/build.mjs && wrangler deploy",
-    "test": "node test/e2e.mjs"
+    "test": "node test/e2e.mjs && node test/appts.mjs && node test/families.mjs",
+    "test:browser": "node test/browser.mjs",
+    "test:migrate": "node test/migrate.mjs"
   },
   "keywords": [],
   "author": "",
