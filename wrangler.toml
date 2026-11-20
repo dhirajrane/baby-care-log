@@ -27,7 +27,7 @@ vars = { APP_ENV = "staging" }
 [[env.staging.d1_databases]]
 binding = "DB"
 database_name = "baby-care-log-staging"
-database_id = "PASTE-STAGING-DATABASE-ID-HERE"
+database_id = "53ca6104-2d08-4be3-94e5-d995caf05b6a"
 
 [env.staging.triggers]
 crons = ["* * * * *"]
