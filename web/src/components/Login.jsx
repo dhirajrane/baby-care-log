@@ -1,9 +1,10 @@
 // Screens for phones that aren't signed in: start, create a family log, join with an invite link, use a recovery code.
 // Also the recovery code screen shown once after creating a family or making a new code.
 import { useEffect, useRef, useState } from 'react';
-import { AUTH, S, loadStatus, openHelp, render, createFamily, inviteInfo, joinFamily, recoverFamily, doneRecovery, pushSupport } from '../store.js';
+import { AUTH, S, loadStatus, openHelp, openPrivacy, render, createFamily, inviteInfo, joinFamily, recoverFamily, doneRecovery, pushSupport } from '../store.js';
 
-const Help = () => <p className="help-link"><button className="chip" onClick={() => openHelp()}>How does the app work?</button></p>;
+const Help = () => <p className="help-link"><button className="chip" onClick={() => openHelp()}>How does the app work?</button> <button className="chip" onClick={openPrivacy}>Privacy</button></p>;
+const PrivacyLink = ({ children }) => <button type="button" className="linkbtn" onClick={openPrivacy}>{children}</button>;
 const Lead = ({ children }) => <p style={{ margin: 0, color: 'var(--muted)', fontSize: 14 }}>{children}</p>;
 const Back = ({ to }) => <button type="button" className="linkbtn" onClick={to}>← Back</button>;
 // Accepts a whole invite link (…/join#CODE) or just the code.
@@ -33,10 +34,12 @@ function Turnstile({ siteKey, onToken }) {
 
 function Create({ back }) {
   const [tt, setTt] = useState('');
+  const [agree, setAgree] = useState(false);
   const siteKey = AUTH.status && AUTH.status.turnstile;
   const { err, busy, submit } = useSubmit((fd) => {
+    if (!agree) return 'Tick the box to agree, so the app can store your baby\'s log.';
     if (siteKey && !tt) return 'Wait for the check below to finish, then try again.';
-    return createFamily({ family: String(fd.get('family') || '').trim(), member: String(fd.get('member') || '').trim(), turnstile: tt });
+    return createFamily({ family: String(fd.get('family') || '').trim(), member: String(fd.get('member') || '').trim(), turnstile: tt, consent: true });
   });
   return <section className="card"><form className="setup" onSubmit={submit}>
     <Back to={back} />
@@ -44,6 +47,7 @@ function Create({ back }) {
     <Lead>You'll get a link to invite your partner and anyone else who helps. Only people you invite can see the log.</Lead>
     <label className="field">Family name<input name="family" placeholder="e.g. The Jansen family" autoComplete="off" maxLength={60} /></label>
     <label className="field">Your name<input name="member" required placeholder="Shown on entries you log" autoComplete="given-name" maxLength={40} /></label>
+    <label className="check consent"><input type="checkbox" checked={agree} onChange={(e) => setAgree(e.target.checked)} /><span>I'm the baby's parent or carer, and I agree that Baby Care Log stores our family's log, including health information about the baby, to share it with the people I invite. <PrivacyLink>Read the privacy statement</PrivacyLink></span></label>
     <Turnstile siteKey={siteKey} onToken={setTt} />
     <p className="login-err">{err}</p>
     <div><button className="btn" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create family log'}</button></div>
@@ -64,6 +68,7 @@ function Join({ code, back }) {
     <Lead>{info.from ? `${info.from} invited you to their family log.` : 'You were invited to this family log.'} You'll see and add the same entries, and get the same reminders.</Lead>
     {ps.ios && !ps.standalone && <p className="notice" style={{ margin: 0 }}>On iPhone, add the app to your Home Screen first: tap <b>Share</b>, then <b>Add to Home Screen</b>. Open it from the new icon and paste this invite link there. Otherwise you'd have to join twice.</p>}
     <label className="field">Your name<input name="member" required placeholder="Shown on entries you log" defaultValue={AUTH.member} autoComplete="given-name" maxLength={40} /></label>
+    <p className="footnote" style={{ margin: 0 }}>By joining, you can see and add to this family's log. <PrivacyLink>Privacy statement</PrivacyLink></p>
     <p className="login-err">{err}</p>
     <div><button className="btn" type="submit" disabled={busy}>{busy ? 'Joining…' : 'Join family log'}</button></div>
   </form></section>;

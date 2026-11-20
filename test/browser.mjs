@@ -18,7 +18,7 @@ const shot = (p, n) => p.screenshot({ path: `${shots}/${n}.png`, fullPage: true 
 
 // ---------- part 1: logging, with a seeded family ----------
 const api = async (path, token, method = 'GET', body) => (await fetch(B + '/api' + path, { method, headers: { 'content-type': 'application/json', 'cf-connecting-ip': ip(), ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: body ? JSON.stringify(body) : undefined })).json();
-const fam = await api('/families', null, 'POST', { family: 'Log test', member: 'Seeder' });
+const fam = await api('/families', null, 'POST', { family: 'Log test', member: 'Seeder', consent: true });
 const T = fam.token, now = Date.now(), H = 36e5, D = 864e5;
 await api('/profile', T, 'PUT', { name: 'Mira', birth: new Date(now - 60 * D).toISOString().slice(0, 10), sex: 'girl', mlPerKg: 150 });
 for (let i = 0; i < 12; i++) await api('/events/s' + i, T, 'PUT', { type: 'feed', kind: 'bottle', ml: 100, t: now - (i + 1) * 3 * H, by: 'Seeder' });
@@ -132,8 +132,14 @@ await ctx.ctx.close();
 const {ctx:c1,p:p1}=await newPhone();
 await p1.route('**/api/**',r=>r.continue({headers:{...r.request().headers(),'cf-connecting-ip':ip()}}));
 await p1.goto(B+'/');await p1.waitForTimeout(800);await shot(p1,'start');
+await p1.locator('.help-link button:has-text("Privacy")').click();await p1.waitForTimeout(800);
+check(/Privacy statement/.test(await p1.locator('main').textContent())&&/Autoriteit Persoonsgegevens/.test(await p1.locator('main').textContent()),'privacy page from start screen');
+await shot(p1,'privacy');await p1.locator('button:has-text("← Back")').click();
 await p1.locator('button:has-text("Create a family log")').click();await shot(p1,'create');
 await p1.fill('input[name=family]','The Jansen family');await p1.fill('input[name=member]','Eva');
+await p1.locator('button:has-text("Create family log")').click();await p1.waitForTimeout(500);
+check(/Tick the box/.test(await p1.locator('.login-err').textContent()),'consent is required');
+await p1.locator('label.consent input').check();
 await p1.locator('button:has-text("Create family log")').click();await p1.waitForTimeout(1200);
 check(await p1.locator('.rcode').count()===1,'recovery code shown after creating');
 const code=(await p1.locator('.rcode').textContent()).trim();check(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/.test(code),'code format '+code);

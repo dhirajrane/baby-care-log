@@ -82,13 +82,13 @@ check((await j('/api/sync', { key: 'wrong-key' })).s === 401, 'wrong old key ref
 check((await j('/api/login', { method: 'POST', body: { key: KEY } })).d.family === 'Rane family', 'old app version can still sign in');
 
 // Trading the old key for a device token
-const up = await j('/api/legacy-login', { method: 'POST', body: { key: KEY, member: 'Dhiraj' } });
+const up = await j('/api/legacy-login', { method: 'POST', body: { key: KEY, member: 'Dhiraj', consent: true } });
 check(up.s === 200 && up.d.token, 'old key traded for a device token');
 s = await j('/api/sync', { token: up.d.token });
 check(s.d.events.filter((e) => !e.deleted).length === 30 && s.d.me.member === 'Dhiraj', 'token sees the same log');
 const dv = (await j('/api/devices', { token: up.d.token })).d;
 check(dv.devices.length === 1 && dv.pushPhones === 1, 'device listed; old push subscription kept');
-check((await j('/api/legacy-login', { method: 'POST', body: { key: 'nope', member: 'x' } })).s === 401, 'wrong key not traded');
+check((await j('/api/legacy-login', { method: 'POST', body: { key: 'nope', member: 'x', consent: true } })).s === 401, 'wrong key not traded');
 
 // Reminders after migration: the due appointment reminder is sent once; already-sent ones are not repeated
 await fetch(B + '/__scheduled?cron=*+*+*+*+*'); await new Promise((r) => setTimeout(r, 2000));
@@ -98,9 +98,9 @@ check(msgs.length === 1 && msgs[0].title === 'In 1 hour: Appt a-due', 'exactly o
 
 // A recovery code can be made for the migrated family
 const rc = (await j('/api/recovery-code', { method: 'POST', token: up.d.token })).d.recovery;
-check(rc && (await j('/api/recover', { method: 'POST', body: { code: rc, member: 'Anna' } })).s === 200, 'recovery code for the migrated family');
+check(rc && (await j('/api/recover', { method: 'POST', body: { code: rc, member: 'Anna', consent: true } })).s === 200, 'recovery code for the migrated family');
 // New families live next to it without seeing its data
-const other = (await j('/api/families', { method: 'POST', body: { family: 'Other', member: 'O' } })).d;
+const other = (await j('/api/families', { method: 'POST', body: { family: 'Other', member: 'O', consent: true } })).d;
 check((await j('/api/sync', { token: other.token })).d.events.length === 0, 'new family sees nothing of the migrated one');
 
 srv.close();

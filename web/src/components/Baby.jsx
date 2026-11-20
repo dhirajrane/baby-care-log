@@ -1,7 +1,7 @@
 // Baby tab: profile, automatic reminders, notifications on this phone, and family/account settings.
 import { HOUR, numOrNull, dayKey, download } from '../lib/util.js';
 import { useState } from 'react';
-import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet } from '../store.js';
+import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet, openPrivacy } from '../store.js';
 import { Radios, ConfirmButton } from './ui.jsx';
 import { guideFromDoctor, pron } from '../lib/calc.js';
 
@@ -123,6 +123,7 @@ function FamilyCard() {
           <div className="rem-btns" style={{ marginTop: 8 }}><ConfirmButton className="chip" label="Make a new recovery code" armedLabel="Tap again: the old code stops working" onConfirm={newRecoveryCode} /></div></>}
 
       <h3 className="sub-h">Your data</h3>
+      <p style={{ margin: '0 0 8px', fontSize: 14 }}>What the app stores and your rights: <button className="linkbtn" onClick={openPrivacy}>privacy statement</button>.</p>
       <div className="rem-btns"><button className="chip" onClick={exportData}>Export data</button>
         <label className="chip" htmlFor="imp" style={{ cursor: 'pointer' }}>Import data</label><input type="file" id="imp" accept=".json,application/json" hidden onChange={importData} /></div>
       <div className="rem-btns" style={{ marginTop: 8 }}><ConfirmButton className="chip" label="Sign out on this phone" armedLabel="Tap again to sign out" onConfirm={() => signOut('', true)} />

@@ -16,6 +16,7 @@ if (location.pathname.replace(/\/+$/, '') === '/join') {
   else if (code) AUTH.joinCode = code;
 }
 if (location.pathname.replace(/\/+$/, '') === '/help' || params.get('tab') === 'help') S.tab = 'help';
+if (location.pathname.replace(/\/+$/, '') === '/privacy') S.tab = 'privacy';
 const tq = params.get('tab');
 if (tq && signedIn() && ['today', 'history', 'growth', 'calendar', 'baby'].includes(tq)) { history.replaceState(null, '', '/'); S.tab = tq; }
 const lq = params.get('log');

@@ -11,6 +11,7 @@ import Baby from './Baby.jsx';
 import Help from './Help.jsx';
 import Report from './Report.jsx';
 import SheetHost from './Sheets.jsx';
+import Privacy from './Privacy.jsx';
 
 const SCREENS = { today: Today, history: History, growth: Growth, calendar: Calendar, baby: Baby, report: Report };
 const TABS = [
@@ -32,13 +33,14 @@ export default function App() {
   const inApp = signedIn();
   let title = 'Baby Care Log', age = '', view;
   if (S.tab === 'help') { title = 'How it works'; view = <Help />; }
+  else if (S.tab === 'privacy') { title = 'Privacy'; view = <Privacy />; }
   else if (!inApp) view = <Login />;
   else if (S.recovery) view = <RecoveryScreen />;
   else { title = S.profile.name || 'Baby Care Log'; age = ageText(S); const Screen = SCREENS[S.tab] || Today; view = <Screen />; }
   return <>
     <div className="app">
       <header className="top"><h1>{title}</h1><span className="age">{age}</span></header>
-      {inApp && S.tab !== 'help' ? <Notices /> : <div id="notice"></div>}
+      {inApp && S.tab !== 'help' && S.tab !== 'privacy' ? <Notices /> : <div id="notice"></div>}
       <main id="view">{view}</main>
     </div>
     <nav className="tabs" aria-label="Sections" hidden={!inApp || !!S.recovery}>

@@ -298,12 +298,14 @@ async function handleApi(req, env, url) {
   const ip = clientIp(req);
 
   // ----- public endpoints -----
-  if (path === '/status' && method === 'GET') return json({ ok: true, turnstile: env.TURNSTILE_SECRET && env.TURNSTILE_SITE_KEY ? env.TURNSTILE_SITE_KEY : null });
+  // Contact for the privacy statement comes from Worker settings (PRIVACY_CONTACT_NAME, PRIVACY_CONTACT_EMAIL), not from the code.
+  if (path === '/status' && method === 'GET') return json({ ok: true, turnstile: env.TURNSTILE_SECRET && env.TURNSTILE_SITE_KEY ? env.TURNSTILE_SITE_KEY : null, contact: { name: env.PRIVACY_CONTACT_NAME || null, email: env.PRIVACY_CONTACT_EMAIL || null } });
 
   if (path === '/families' && method === 'POST') {
     const b = await readBody(req);
     const member = cleanName(b.member), name = cleanName(b.family, 60) || 'Our family';
     if (!member) return fail(400, 'name_required');
+    if (b.consent !== true) return fail(400, 'consent_required'); // explicit consent: the log holds health data about a child
     if (await limited(env, 'create:' + ip, 5, DAY)) return fail(429, 'too_many');
     if (!(await turnstileOk(env, b.turnstile, ip))) return fail(403, 'bot_check');
     const fam = 'f' + randomId(); const code = recoveryCode(); const now = Date.now();
@@ -384,7 +386,8 @@ async function handleApi(req, env, url) {
     const [, table, id] = m;
     const now = Date.now();
     if (method === 'DELETE') {
-      const stmts = [env.DB.prepare(`UPDATE ${table} SET deleted = 1, updated = ? WHERE family = ? AND id = ?`).bind(now, fam, id)];
+      // Keep only the marker that other phones need to sync the delete; the content is wiped.
+      const stmts = [env.DB.prepare(`UPDATE ${table} SET deleted = 1, updated = ?, data = '{}' WHERE family = ? AND id = ?`).bind(now, fam, id)];
       if (table === 'appts') stmts.push(...alarmStmts(env, fam, id, null, 0, true));
       await env.DB.batch(stmts);
       return json({ ok: true });

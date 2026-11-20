@@ -272,3 +272,5 @@ nav.tabs button[aria-current="page"]{color:var(--feed)}
 .sub-h{font-family:var(--f-display);font-size:16px;margin:18px 0 6px}
 .sg-note{margin:12px 0 0;background:var(--feed-soft);border-radius:12px;padding:10px 12px;font-size:14px;line-height:1.45}
 .sg-note b{color:var(--feed)}
+.check.consent{align-items:flex-start;font-weight:500;font-size:13.5px;line-height:1.45}
+.check.consent input{margin-top:2px}

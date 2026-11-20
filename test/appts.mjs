@@ -12,8 +12,8 @@ const ua = crypto.createECDH('prime256v1'); ua.generateKeys(); const auth = cryp
 const sub = { endpoint: 'http://127.0.0.1:9912/p', keys: { p256dh: ua.getPublicKey().toString('base64url'), auth: auth.toString('base64url') } };
 const tick = async () => { await fetch(B + '/__scheduled?cron=*+*+*+*+*'); await new Promise((r) => setTimeout(r, 1500)); };
 
-TOKEN = (await j('/api/families', { method: 'POST', body: { family: 'T', member: 'Dad' } })).d.token;
-await j('/api/subscribe', { method: 'POST', body: { subscription: sub, member: 'Dad' } });
+TOKEN = (await j('/api/families', { method: 'POST', body: { family: 'T', member: 'Dad', consent: true } })).d.token;
+await j('/api/subscribe', { method: 'POST', body: { subscription: sub, member: 'Dad', consent: true } });
 const now = Date.now(), M = 60000;
 await j('/api/appts/a1', { method: 'PUT', body: { kind: 'cb', title: '8-week check-up', t: now + 59 * M, place: 'CB Centrum', remind: [1440, 60] } }); // 1 h reminder due; 1 day one is >2 h old, skipped
 await j('/api/appts/a2', { method: 'PUT', body: { kind: 'vaccination', title: 'Vaccination: rotavirus', t: now + 30 * M, remind: [60], planned: true } }); // expected date: silent

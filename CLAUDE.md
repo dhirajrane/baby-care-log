@@ -4,7 +4,7 @@ A family baby tracker for Dhiraj's daughter. It logs feeds, diapers, pumping, gr
 
 - Live: https://baby-care-log.dhiraj-rane2.workers.dev (Cloudflare Workers free plan + D1)
 - Deploys: Cloudflare is connected to this GitHub repo; **every push to `main` deploys automatically** (Cloudflare runs `node scripts/build.mjs` then `npx wrangler deploy`).
-- Read-only docs page for friends: `/help` (no sign-in needed).
+- Read-only pages, no sign-in needed: `/help` (How it works) and `/privacy` (privacy statement, `Privacy.jsx`; keep it in sync with what the worker stores).
 
 ## Working agreement (from the original chat)
 - The user sometimes asks to **plan only**. When they say "don't implement / don't push", answer with a plan and change nothing.
@@ -73,7 +73,7 @@ curl "http://localhost:8787/__scheduled?cron=*+*+*+*+*"   # trigger the reminder
 `npm run build` fails on any syntax error in `web/src`.
 
 ## Known limits and open ideas
-- Multi-family is built (branch work, Nov 2026). Still open before sharing publicly: privacy statement and consent at sign-up, DPIA, EU data location for D1, Cloudflare DPA, the feeding-suggestion wording under EU MDR, a custom domain. iPhone: the home-screen app has its own storage, so people should add it to the home screen before joining. Pronouns: screens about the baby use `pron(S)` from `calc.js` (he/his/him for a boy, she/her otherwise); the public How it works page says "the baby".
+- Multi-family is built (branch work, Nov 2026), with a privacy statement (`/privacy`), required consent on Create a family log (server refuses without `consent: true`; stored in `families.consent`), self-hosted fonts (no Google Fonts), and deleted entries wiped to `'{}'`. The privacy contact comes from Worker settings `PRIVACY_CONTACT_NAME` / `PRIVACY_CONTACT_EMAIL` (set as secrets in the dashboard so they survive deploys; locally in `.dev.vars`, git-ignored). Still open before sharing publicly: a legal review of the statement, DPIA, EU data location for D1, Cloudflare DPA, a custom domain. iPhone: the home-screen app has its own storage, so people should add it to the home screen before joining. Pronouns: screens about the baby use `pron(S)` from `calc.js` (he/his/him for a boy, she/her otherwise); the public How it works page says "the baby".
 - Free Cloudflare limits: 100k Worker requests/day; polling every 30 s per open phone (about 120 requests/hour). D1 free limits are enforced since Sept 2026.
 - Reminders need notifications enabled per phone; on iPhone only from the home-screen app (iOS 16.4+).
 - Planned (not started), discussed with the user: native iOS/Android app via Capacitor for a wider free audience. Prerequisites: multi-family accounts (now built), GDPR work for children's health data (consent, DPIA, EU data location), Apple 4.2 "more than a website", Google Play's 12 testers × 14 days closed test, and a decision on the feeding suggestion under EU MDR (launch without it, reword it as a pattern summary, or get regulatory advice).

@@ -103,6 +103,7 @@ export function openHelp(id) {
   S.prevTab = S.tab === 'help' ? S.prevTab : S.tab; S.tab = 'help'; render(); window.scrollTo(0, 0);
   if (id) setTimeout(() => { const el = document.getElementById('h-' + id); if (el) el.scrollIntoView({ block: 'start' }); }, 30);
 }
+export function openPrivacy() { S.prevTab = S.tab === 'privacy' ? S.prevTab : S.tab; S.tab = 'privacy'; render(); window.scrollTo(0, 0); }
 export function openReport() { S.prevTab = S.tab; S.rep = null; S.tab = 'report'; render(); window.scrollTo(0, 0); }
 export function openSheet(kind, row) { S.sheet = { kind, row: row || null, key: Date.now() }; render(); }
 export function closeSheet() { if (S.sheet) { S.sheet = null; render(); } }
@@ -134,9 +135,9 @@ export async function signOut(msg, revoke) {
 export async function loadStatus() { try { AUTH.status = await api('/status', { noAuth: true }); } catch (e) { AUTH.status = { error: true }; } render(); }
 const errText = (e, map) => e.code === 'offline' ? 'No connection. Check this phone is online.' : (e.status && map[e.status]) || (e.status === 429 ? 'Too many tries. Wait an hour and try again.' : 'Something went wrong. Try again.');
 // Each returns an error message, or '' when this phone is signed in.
-export async function createFamily({ family, member, turnstile }) {
+export async function createFamily({ family, member, turnstile, consent }) {
   try {
-    const r = await api('/families', { method: 'POST', noAuth: true, body: { family, member, turnstile, tz: tz(), consent: true } });
+    const r = await api('/families', { method: 'POST', noAuth: true, body: { family, member, turnstile, tz: tz(), consent } });
     S.recovery = { code: r.recovery, first: true };
     await rememberToken(r.token, member, r.family);
     return '';

@@ -15,7 +15,8 @@ const sub={endpoint:'http://127.0.0.1:9911/push/abc',keys:{p256dh:ua.getPublicKe
 
 check((await j('/api/status')).d.ok===true,'status');
 check((await j('/api/families',{method:'POST',body:{family:'Test family'}})).s===400,'name required');
-let c=await j('/api/families',{method:'POST',body:{family:'Test family',member:'Dad'}});
+check((await j('/api/families',{method:'POST',body:{family:'Test family',member:'Dad'}})).s===400,'consent required');
+let c=await j('/api/families',{method:'POST',body:{family:'Test family',member:'Dad', consent: true}});
 check(c.s===200&&c.d.token&&/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/.test(c.d.recovery),'family created with token and recovery code');
 TOKEN=c.d.token;
 check((await j('/api/sync',{token:'x'.repeat(43)})).s===401,'auth required');
@@ -38,7 +39,7 @@ await j('/api/profile',{method:'PUT',body:{name:'Mira',birth:'2026-09-01',sex:'g
 check((await j('/api/sync')).d.profile.name==='Mira','profile saved');
 
 // push
-check((await j('/api/subscribe',{method:'POST',body:{subscription:sub,member:'Dad'}})).s===200,'subscribe');
+check((await j('/api/subscribe',{method:'POST',body:{subscription:sub,member:'Dad', consent: true}})).s===200,'subscribe');
 const vapid=(await j('/api/vapid')).d.publicKey;
 r=await j('/api/test-push',{method:'POST',body:{endpoint:sub.endpoint}});
 check(r.d.sent===1,'test push sent '+JSON.stringify(r.d));

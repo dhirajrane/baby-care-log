@@ -1,6 +1,6 @@
 // "How it works" page: every calculation in plain language, with sources. Readable without signing in at /help.
 import { HELP_SRC } from '../lib/constants.js';
-import { S, render, toast } from '../store.js';
+import { S, render, toast, openPrivacy } from '../store.js';
 
 const Src = ({ k }) => <a href={HELP_SRC[k][1]} target="_blank" rel="noopener">{HELP_SRC[k][0]}</a>;
 const Sec = ({ id, title, children }) => <section className="card help" id={'h-' + id}><h2>{title}</h2>{children}</section>;
@@ -124,6 +124,7 @@ export default function Help() {
         <li>Entries logged without internet are kept on the phone and sent when it's back online.</li>
         <li>Baby → Export data downloads everything as a file you can keep as a backup or import again.</li>
         <li>Baby → Delete family log removes the log and everything in it for every member.</li>
+        <li>The <a href="/privacy" onClick={(ev) => { ev.preventDefault(); openPrivacy(); }}>privacy statement</a> explains what's stored, why, and your rights.</li>
       </ul>
     </Sec>
 

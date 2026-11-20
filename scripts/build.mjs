@@ -14,12 +14,21 @@ for (const f of readdirSync('public')) {
   assets['/' + f] = { type: TYPES[ext] || 'application/octet-stream', body, b64: bin, cache: bin ? 'public, max-age=604800' : 'no-cache' };
 }
 
+// Fonts are served by the app itself (no Google Fonts request, so no IP address goes to Google).
+const FONTS = [['Figtree', 'figtree', [400, 500, 600, 700]], ['Bricolage Grotesque', 'bricolage-grotesque', [500, 700]]];
+let fontCss = '';
+for (const [family, pkg, weights] of FONTS) for (const w of weights) {
+  const file = `${pkg}-latin-${w}-normal.woff2`;
+  assets['/fonts/' + file] = { type: 'font/woff2', body: readFileSync(`node_modules/@fontsource/${pkg}/files/${file}`).toString('base64'), b64: true, cache: 'public, max-age=31536000, immutable' };
+  fontCss += `@font-face{font-family:'${family}';font-style:normal;font-weight:${w};font-display:swap;src:url(/fonts/${file}) format('woff2')}\n`;
+}
+
 const app = await build({
   entryPoints: ['web/src/main.jsx'], bundle: true, write: false, format: 'iife', target: 'es2020',
   jsx: 'automatic', minify: true, legalComments: 'none', define: { 'process.env.NODE_ENV': '"production"' },
 });
 assets['/app.js'] = { type: TYPES.js, body: app.outputFiles[0].text, cache: 'no-cache' };
-const html = readFileSync('web/index.html', 'utf8').replace('/*STYLES*/', () => readFileSync('web/styles.css', 'utf8'));
+const html = readFileSync('web/index.html', 'utf8').replace('/*STYLES*/', () => fontCss + readFileSync('web/styles.css', 'utf8'));
 assets['/'] = { type: TYPES.html, body: html, cache: 'no-cache' };
 
 // Write only when something changed, so `wrangler dev` (which watches src/) doesn't rebuild in a loop.

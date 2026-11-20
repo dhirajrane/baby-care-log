@@ -46,6 +46,7 @@ When a reminder is due, every phone with notifications on gets an alert, even wi
 
 ## Good to know
 - **Cost:** nothing on the free plan for a handful of families. Each open phone checks for updates every 30 seconds; the free plan allows 100,000 requests a day, which is roughly 100–150 phones that keep the app open for a few hours a day. Beyond that, the Workers paid plan ($5 a month) is needed.
+- **Privacy contact:** the privacy statement at `/privacy` shows who runs the app and how to reach them. In the Worker → **Settings → Variables and Secrets**, add `PRIVACY_CONTACT_NAME` and `PRIVACY_CONTACT_EMAIL` (type **Secret**, so deploys keep them). Do this for the staging Worker too.
 - **Optional bot check:** to stop scripts from creating families, add a Cloudflare Turnstile widget and set `TURNSTILE_SITE_KEY` (a variable) and `TURNSTILE_SECRET` (a secret) on the Worker. Without them, creating a family is limited to 5 per day per internet address.
 - **Updates:** changes pushed to the `main` branch deploy automatically. Your data stays in the database.
 - **Backup:** use **Baby → Export data** now and then. The same screen has **Import data** to load a backup, and **Delete family log** to remove a family and everything in it.
