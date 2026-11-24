@@ -173,6 +173,23 @@ check(await p.locator('.tiles3').count() === 1, 'show all of today from night vi
 await p.locator('header .avatar').click(); await p.waitForTimeout(300);
 await p.locator('.seg-tabs[aria-label="Night view"] button:has-text("Off")').click(); await p.waitForTimeout(300);
 check(await p.evaluate(() => localStorage.getItem('babycarelog.night')) === 'off' && await p.evaluate(() => document.documentElement.dataset.theme) !== 'dark', 'night view off from Baby');
+// ---------- appearance ----------
+const theme = () => p.evaluate(() => document.documentElement.dataset.theme || 'auto');
+const bg = () => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
+await p.locator('.seg-tabs[aria-label="Night view"] button:has-text("Always")').click(); await p.waitForTimeout(200);
+await p.locator('.seg-tabs[aria-label="Appearance"] button:has-text("Light")').click(); await p.waitForTimeout(200);
+check(await theme() === 'light' && await bg() === 'rgb(251, 247, 242)', 'Light overrides the night view colours');
+await p.locator('.seg-tabs[aria-label="Appearance"] button:has-text("Automatic")').click(); await p.waitForTimeout(200);
+check(await theme() === 'dark', 'Automatic: dark during the night view');
+await p.locator('.seg-tabs[aria-label="Night view"] button:has-text("Off")').click(); await p.waitForTimeout(200);
+check(await theme() === 'auto' && await bg() === 'rgb(251, 247, 242)', 'Automatic: follows the phone (light here)');
+await p.locator('.seg-tabs[aria-label="Appearance"] button:has-text("Dark")').click(); await p.waitForTimeout(200);
+check(await theme() === 'dark' && await bg() === 'rgb(20, 18, 28)', 'Dark on its own');
+await p.reload(); await p.waitForTimeout(1000);
+check(await theme() === 'dark', 'appearance is remembered on this phone');
+await p.locator('header .avatar').click(); await p.waitForTimeout(300);
+await shot(p, 'appearance-dark');
+await p.locator('.seg-tabs[aria-label="Appearance"] button:has-text("Automatic")').click(); await p.waitForTimeout(200);
 // ---------- share an idea ----------
 await p.locator('button:has-text("Share an idea")').first().click(); await p.waitForTimeout(500);
 await p.locator('.radios label:has-text("Something is wrong")').click();

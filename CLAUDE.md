@@ -41,7 +41,7 @@ A family baby tracker for Dhiraj's daughter. It logs feeds, diapers, pumping, gr
 - `growth`: kg (stored in kg, shown in grams), cm, head.
 - `appts`: kind midwife|cb|vaccination|doctor|other, title, t, place, note, remind (minutes before), planned (expected vaccination date: silent until confirmed).
 - Profile: name, birth (YYYY-MM-DD), sex, guideSrc (nl|doctor), mlPerKg (default 150), nightStart/nightEnd (HH:MM, default 19:00/07:00).
-- Per phone (localStorage): `babycarelog.night` = auto (22:00–06:00) | on | off for the night view.
+- Per phone (localStorage): `babycarelog.night` = auto (22:00–06:00) | on | off for the night view; `babycarelog.theme` = auto | light | dark (Baby → Appearance). Light/Dark override everything; Automatic follows the phone and goes dark while the night view is on (`applyTheme` in `store.js`, which also sets `data-theme` and the theme-color meta).
 - Client sync: `GET /api/sync?since=` (incremental, tombstones, plus family name and whether it has a recovery code), writes via an offline outbox in localStorage, polling every 30 s while visible and on opening the app.
 
 ## Key calculations (see the How it works page for the user-facing version)

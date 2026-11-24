@@ -296,3 +296,15 @@ S.nightFull = false;
 export function nightActive() { if (S.nightPref === 'on') return true; if (S.nightPref === 'off') return false; const h = new Date().getHours(); return h >= 22 || h < 6; }
 export function setNightPref(v) { S.nightPref = v; S.nightFull = false; lsSet('babycarelog.night', v); render(); }
 export function showFullToday(on) { S.nightFull = on; render(); window.scrollTo(0, 0); }
+
+// ---------- appearance (per phone) ----------
+// 'auto': follow the phone, and dark while the night view is on; 'light' / 'dark': always that.
+S.themePref = ['auto', 'light', 'dark'].includes(lsGet('babycarelog.theme')) ? lsGet('babycarelog.theme') : 'auto';
+export function setThemePref(v) { S.themePref = v; lsSet('babycarelog.theme', v); render(); }
+export function applyTheme(nightOn) {
+  const root = document.documentElement;
+  const want = S.themePref === 'light' ? 'light' : S.themePref === 'dark' || nightOn ? 'dark' : null;
+  if (want) root.dataset.theme = want; else delete root.dataset.theme;
+  const dark = want === 'dark' || (!want && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => { m.content = dark ? '#14121c' : '#fbf7f2'; m.removeAttribute('media'); });
+}

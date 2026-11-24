@@ -1,6 +1,6 @@
 // App shell: header, notices, the current screen, bottom log bar and tabs, sheets and toast.
 import { ageText } from '../lib/calc.js';
-import { S, useApp, signedIn, go, openSheet, hideToast, nightActive } from '../store.js';
+import { S, useApp, signedIn, go, openSheet, hideToast, nightActive, applyTheme } from '../store.js';
 import { Notices } from './Reminders.jsx';
 import Login, { RecoveryScreen } from './Login.jsx';
 import Today from './Today.jsx';
@@ -39,9 +39,8 @@ export default function App() {
   else if (!inApp) view = <Login />;
   else if (S.recovery) view = <RecoveryScreen />;
   else { title = S.profile.name || 'Baby Care Log'; age = ageText(S); const Screen = SCREENS[S.tab] || Today; view = <Screen />; }
-  // Night view: the whole app uses the dark night colours.
-  const night = inApp && nightActive();
-  if (night) document.documentElement.dataset.theme = 'dark'; else if (document.documentElement.dataset.theme === 'dark') delete document.documentElement.dataset.theme;
+  // Appearance: the phone's setting, Light or Dark chosen under Baby, and dark during the night view (Automatic only).
+  applyTheme(inApp && nightActive());
   const babyHeader = inApp && !S.recovery && S.tab !== 'help' && S.tab !== 'privacy' && S.tab !== 'admin';
   const name = S.profile.name || 'Baby Care Log';
   return <>

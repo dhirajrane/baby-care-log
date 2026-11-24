@@ -1,7 +1,7 @@
 // Baby tab: profile, automatic reminders, notifications on this phone, and family/account settings.
 import { HOUR, numOrNull, dayKey, download } from '../lib/util.js';
 import { useState } from 'react';
-import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet, openPrivacy, setNightPref } from '../store.js';
+import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet, openPrivacy, setNightPref, setThemePref } from '../store.js';
 import { Radios, ConfirmButton } from './ui.jsx';
 import { guideFromDoctor, pron } from '../lib/calc.js';
 
@@ -156,6 +156,10 @@ export default function Baby() {
     <ProfileCard />
     <AutoRemCard />
     <NightCard />
+    <section className="card"><h2>Appearance</h2>
+      <p style={{ margin: '6px 0 10px', color: 'var(--muted)', fontSize: 14 }}>Automatic follows your phone's light or dark setting, and turns dark during the night view. This is for this phone only.</p>
+      <div className="seg-tabs" role="group" aria-label="Appearance">{[['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']].map(([v, l]) => <button key={v} aria-pressed={S.themePref === v} onClick={() => setThemePref(v)}>{l}</button>)}</div>
+    </section>
     <section className="card"><h2>Night view</h2>
       <p style={{ margin: '6px 0 10px', color: 'var(--muted)', fontSize: 14 }}>Dim colours and big buttons for night feeds, so you don't light up the room. This setting is for this phone only.</p>
       <div className="seg-tabs" role="group" aria-label="Night view">{[['auto', '22:00–06:00'], ['on', 'Always'], ['off', 'Off']].map(([v, l]) => <button key={v} aria-pressed={S.nightPref === v} onClick={() => setNightPref(v)}>{l}</button>)}</div>
