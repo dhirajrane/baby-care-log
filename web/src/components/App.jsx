@@ -14,18 +14,18 @@ import SheetHost from './Sheets.jsx';
 import Privacy from './Privacy.jsx';
 
 const SCREENS = { today: Today, history: History, growth: Growth, calendar: Calendar, baby: Baby, report: Report };
-const TABS = [
-  ['today', 'Today', <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>],
-  ['history', 'History', <path d="M4 19V9M10 19V5M16 19v-7M22 19H2" />],
-  ['growth', 'Growth', <><path d="M3 18c4-1 6-4 8-8s5-6 10-6" /><circle cx="21" cy="4" r="1.2" /></>],
-  ['calendar', 'Calendar', <><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>],
-  ['baby', 'Baby', <><circle cx="12" cy="9" r="4.5" /><path d="M4.5 21c1.2-3.6 4-5.2 7.5-5.2s6.3 1.6 7.5 5.2" /></>],
-];
-const LOG = [['feed', 'Feed'], ['diaper', 'Diaper'], ['pump', 'Pump'], ['note', 'Note']];
+const ICON = {
+  today: <><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z" /></>,
+  history: <path d="M5 19V10M12 19V5M19 19v-6" />,
+  growth: <path d="M4 17c4-1 6-4 8-8s4-5 8-5" />,
+  calendar: <><rect x="4" y="5" width="16" height="15" rx="3" /><path d="M4 10h16M9 3v4M15 3v4" /></>,
+};
+const TABS = [['today', 'Today'], ['history', 'History'], null, ['growth', 'Growth'], ['calendar', 'Calendar']];
+const hello = () => { const h = new Date().getHours(); return h < 6 ? 'Good night' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'; };
 
 function Toast() {
   const t = S.toast; if (!t) return null;
-  return <div className="toast" role="status"><span>{t.msg}</span>{t.undo && <button onClick={() => { hideToast(); t.undo(); }}>Undo</button>}</div>;
+  return <div className="toast" role="status"><span>{t.msg}</span>{t.undo && <button onClick={() => { hideToast(); t.undo(); }}>{t.label}</button>}</div>;
 }
 
 export default function App() {
@@ -37,18 +37,22 @@ export default function App() {
   else if (!inApp) view = <Login />;
   else if (S.recovery) view = <RecoveryScreen />;
   else { title = S.profile.name || 'Baby Care Log'; age = ageText(S); const Screen = SCREENS[S.tab] || Today; view = <Screen />; }
+  const babyHeader = inApp && !S.recovery && S.tab !== 'help' && S.tab !== 'privacy';
+  const name = S.profile.name || 'Baby Care Log';
   return <>
     <div className="app">
-      <header className="top"><h1>{title}</h1><span className="age">{age}</span></header>
+      {babyHeader
+        ? <header className="top"><div style={{ minWidth: 0 }}><p className="hello">{hello()}</p><h1>{name}{age && <span className="age"> · {age}</span>}</h1></div>
+          <button className="avatar" aria-label={`About ${S.profile.name || 'the baby'}, family and settings`} aria-current={S.tab === 'baby' ? 'page' : 'false'} onClick={() => go('baby')}>{(S.profile.name || 'B').trim().charAt(0).toUpperCase()}</button></header>
+        : <header className="top"><h1>{title}</h1><span className="age">{age}</span></header>}
       {inApp && S.tab !== 'help' && S.tab !== 'privacy' ? <Notices /> : <div id="notice"></div>}
       <main id="view">{view}</main>
     </div>
     <nav className="tabs" aria-label="Sections" hidden={!inApp || !!S.recovery}>
-      <div className="logbar" role="group" aria-label="Log">
-        {LOG.map(([k, l]) => <button key={k} className={'lb ' + (k === 'diaper' ? 'diaper' : k)} onClick={() => openSheet(k)}><span>+</span>{l}</button>)}
-      </div>
       <div className="in">
-        {TABS.map(([k, l, icon]) => <button key={k} aria-current={S.tab === k ? 'page' : 'false'} onClick={() => go(k)}><svg viewBox="0 0 24 24">{icon}</svg>{l}</button>)}
+        {TABS.map((t) => t
+          ? <button key={t[0]} aria-current={S.tab === t[0] ? 'page' : 'false'} onClick={() => go(t[0])}><svg viewBox="0 0 24 24" aria-hidden="true">{ICON[t[0]]}</svg>{t[1]}</button>
+          : <button key="log" className="fab" aria-label="Log something" onClick={() => openSheet('logmenu')}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg></button>)}
       </div>
     </nav>
     <div id="sheet-root"><SheetHost /></div>

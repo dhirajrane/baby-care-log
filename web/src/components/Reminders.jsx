@@ -1,8 +1,8 @@
 // Reminders card on Today, and the overdue alerts and fever banner above every screen.
 import { HOUR, fmtTime, fmtIn, fmtTemp } from '../lib/util.js';
 import { KL } from '../lib/constants.js';
-import { temps, ageMonths, pron } from '../lib/calc.js';
-import { S, openSheet, snooze, setDue, toggleWake, seeFever } from '../store.js';
+import { temps, ageMonths, pron, currentSleep, fmtDurShort } from '../lib/calc.js';
+import { S, openSheet, snooze, setDue, toggleWake, seeFever, render } from '../store.js';
 
 function openRem(kind) {
   const last = S.events.find((e) => e.type === kind);
@@ -44,9 +44,18 @@ export function Notices() {
         <div className="rem-btns"><button className="chip" onClick={() => seeFever(lt.id)}>OK</button></div></div>
     );
   }
+  // A sleep running for more than 12 hours: probably a forgotten "Woke up".
+  const cs = currentSleep(S); let longSleep = null;
+  if (cs && Date.now() - cs.t > 12 * HOUR && S.longSleepOk !== cs.id) {
+    const { She } = pron(S);
+    longSleep = (
+      <div className="alert pump" role="alert"><div><b>Still asleep since {fmtTime(cs.t)}?</b><div className="sub">That's {fmtDurShort(Date.now() - cs.t)}. If {She.toLowerCase()} woke up, set the time so the totals stay right.</div></div>
+        <div className="rem-btns"><button className="chip" onClick={() => openSheet('sleep', cs)}>Set wake-up time</button><button className="chip" onClick={() => { S.longSleepOk = cs.id; render(); }}>{She}'s still asleep</button></div></div>
+    );
+  }
   return (
     <div id="notice">
-      {fever}
+      {fever}{longSleep}
       {overdue.map((k) => (
         <div key={k} className={'alert ' + k} role="alert"><div><b>Time for the next {KL[k]}</b><div className="sub">Reminder was set for {fmtTime(S.rem.due[k])}</div></div>
           <div className="rem-btns"><button className="chip" onClick={() => openSheet(k)}>Log {k === 'feed' ? 'feed' : 'pumping'}</button><button className="chip" onClick={() => snooze(k)}>+15 min</button><button className="chip" onClick={() => setDue(k, null, 'Reminder cleared')}>Dismiss</button></div></div>

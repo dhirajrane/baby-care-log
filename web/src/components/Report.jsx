@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { dayKey, keyToMs, fmtDate, fmtTime, fmtDur, fmtTemp, grams, lsGet, lsSet } from '../lib/util.js';
 import { AK_TITLE, TSITE, NOTE_TAGS } from '../lib/constants.js';
-import { buildReport, lastVisit, repRange, whoBand, ageText } from '../lib/calc.js';
+import { buildReport, lastVisit, repRange, whoBand, ageText, fmtDurShort, nightLabel } from '../lib/calc.js';
 import { S, render, toast } from '../store.js';
 
 const n1 = (v) => v == null ? '–' : (Math.round(v * 10) / 10).toLocaleString();
@@ -64,6 +64,14 @@ export default function Report() {
         <Stat label="Stool colours">{Object.keys(r.colors).length ? Object.entries(r.colors).sort((a, b) => b[1] - a[1]).map(([c, n]) => `${c} ${n}×`).join(', ') : '–'}</Stat>
       </div></section>
 
+      {r.hasSleep && <section className="rsec"><h2>Sleep</h2><div className="rstats">
+        <Stat label="Sleep per day" sub={r.sleep.total && r.sleep.total.n > 1 ? `${fmtDurShort(r.sleep.total.min)}–${fmtDurShort(r.sleep.total.max)}` : ''}>{r.sleep.total ? fmtDurShort(r.sleep.total.avg) : '–'}</Stat>
+        <Stat label={`Night sleep (${nightLabel(S)})`}>{r.sleep.night ? fmtDurShort(r.sleep.night.avg) : '–'}</Stat>
+        <Stat label="Naps per day" sub={r.sleep.day ? `${fmtDurShort(r.sleep.day.avg)} in total` : ''}>{n1(r.sleep.naps && r.sleep.naps.avg)}</Stat>
+        <Stat label="Longest sleep" sub="average per day">{r.sleep.longest ? fmtDurShort(r.sleep.longest.avg) : '–'}</Stat>
+        <Stat label="Night wakings">{n1(r.sleep.wakings && r.sleep.wakings.avg)}</Stat>
+      </div></section>}
+
       {r.hasTemp && <section className="rsec"><h2>Temperature</h2>
         <div className="tbl"><table><thead><tr><th>When</th><th>Temperature</th><th>Measured</th></tr></thead><tbody>
           {r.temps.map((e) => <tr key={e.id} className={e.temp >= 38 ? 'hot' : undefined}><td>{fmtDate(e.t)} {fmtTime(e.t)}</td><td>{fmtTemp(e.temp)}{e.temp >= 38 ? ' · fever range' : e.temp < 35.8 ? ' · low' : ''}</td><td>{TSITE[e.tempSite || 'rectal'] || ''}</td></tr>)}
@@ -73,10 +81,10 @@ export default function Report() {
         <Stat label="Pumped per day">{r.pumped ? <>{ml10(r.pumped.avg)} ml<RngMl a={r.pumped} /></> : '–'}</Stat>
         <Stat label="Sessions per day">{n1(r.pumps && r.pumps.avg)}</Stat></div></section>}
 
-      <section className="rsec"><h2>Day by day</h2><div className="tbl"><table className="days"><thead><tr><th>Day</th><th>Feeds</th><th>Bottles ml</th><th>Breast</th><th>Wet</th><th>Dirty</th>{r.hasTemp && <th>Max °C</th>}{r.hasPump && <th>Pumped ml</th>}</tr></thead><tbody>
+      <section className="rsec"><h2>Day by day</h2><div className="tbl"><table className="days"><thead><tr><th>Day</th><th>Feeds</th><th>Bottles ml</th><th>Breast</th><th>Wet</th><th>Dirty</th>{r.hasSleep && <th>Sleep</th>}{r.hasTemp && <th>Max °C</th>}{r.hasPump && <th>Pumped ml</th>}</tr></thead><tbody>
         {[...r.days].reverse().map((d) => <tr key={d.k} className={d.complete ? undefined : 'pre'}>
           <td>{new Date(keyToMs(d.k)).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}{!d.complete && <> <em>so far</em></>}</td>
-          <td>{d.any ? d.feeds : '–'}</td><td>{d.any ? d.ml : '–'}</td><td>{d.any ? d.breast : '–'}</td><td>{d.any ? d.wet : '–'}</td><td>{d.any ? d.dirty : '–'}</td>
+          <td>{d.any ? d.feeds : '–'}</td><td>{d.any ? d.ml : '–'}</td><td>{d.any ? d.breast : '–'}</td><td>{d.any ? d.wet : '–'}</td><td>{d.any ? d.dirty : '–'}</td>{r.hasSleep && <td>{d.sleep.count ? fmtDurShort(d.sleep.total) : '–'}</td>}
           {r.hasTemp && <td className={d.maxTemp >= 38 ? 'hotc' : undefined}>{d.maxTemp != null ? d.maxTemp.toFixed(1) : '–'}</td>}
           {r.hasPump && <td>{d.pumped || '–'}</td>}
         </tr>)}

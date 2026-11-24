@@ -139,6 +139,7 @@ function recoveryCode() { const b = crypto.getRandomValues(new Uint8Array(16)); 
 const normRecovery = (c) => String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 const cleanName = (s, n = 40) => String(s || '').replace(/[\u0000-\u001f]/g, '').trim().slice(0, n);
 const cleanKey = (k) => String(k || '').trim();
+const hhmm = (v, d) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || '')) ? String(v) : d;
 async function readBody(req) { try { return await req.json(); } catch { return {}; } }
 const clientIp = (req) => req.headers.get('cf-connecting-ip') || 'local';
 const slow = () => new Promise((r) => setTimeout(r, 400));
@@ -427,7 +428,7 @@ async function handleApi(req, env, url) {
   if (path === '/profile' && method === 'PUT') {
     const b = await readBody(req);
     const mlPerKg = Number(b.mlPerKg);
-    await fkvSet(env, fam, 'profile', { name: String(b.name || '').slice(0, 60), birth: String(b.birth || '').slice(0, 10), sex: b.sex === 'boy' ? 'boy' : 'girl', guideSrc: b.guideSrc === 'doctor' ? 'doctor' : 'nl', mlPerKg: mlPerKg >= 100 && mlPerKg <= 200 ? Math.round(mlPerKg) : 150 });
+    await fkvSet(env, fam, 'profile', { name: String(b.name || '').slice(0, 60), birth: String(b.birth || '').slice(0, 10), sex: b.sex === 'boy' ? 'boy' : 'girl', guideSrc: b.guideSrc === 'doctor' ? 'doctor' : 'nl', mlPerKg: mlPerKg >= 100 && mlPerKg <= 200 ? Math.round(mlPerKg) : 150, nightStart: hhmm(b.nightStart, '19:00'), nightEnd: hhmm(b.nightEnd, '07:00') });
     return json({ ok: true });
   }
   if (path === '/reminders' && method === 'PUT') {

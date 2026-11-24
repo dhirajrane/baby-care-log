@@ -6,7 +6,7 @@ export const COLORS = ['Yellow', 'Mustard', 'Green', 'Brown', 'Black', 'Other'];
 export const TSITE = { rectal: 'Rectal', armpit: 'Armpit', ear: 'Ear', forehead: 'Forehead' };
 export const NOTE_TAGS = { happy: 'Happy', calm: 'Calm', fussy: 'Fussy', sleepy: 'Sleepy', unwell: 'Unwell', milestone: 'Milestone' };
 export const KL = { feed: 'feed', pump: 'pumping session' };
-export const HF = { all: 'All', feed: 'Feeds', diaper: 'Diapers', pump: 'Pumping', note: 'Notes' };
+export const HF = { all: 'All', feed: 'Feeds', diaper: 'Diapers', sleep: 'Sleep', pump: 'Pumping', note: 'Notes' };
 
 // Appointments
 export const AK = { midwife: 'Midwife', cb: 'Consultatiebureau', vaccination: 'Vaccination', doctor: 'Doctor', other: 'Other' };

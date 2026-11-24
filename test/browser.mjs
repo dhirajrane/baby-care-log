@@ -14,6 +14,9 @@ let ok = 0, fail = 0; const check = (c, m) => { if (c) ok++; else { fail++; cons
 const ip = () => '10.9.' + Math.floor(Math.random() * 250) + '.' + Math.floor(Math.random() * 250);
 const b = await chromium.launch(); const errs = [];
 const newPhone = async (scheme = 'light') => { const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: scheme, permissions: ['clipboard-read', 'clipboard-write'] }); const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(String(e))); p.on('console', (m) => { if (m.type() === 'error' && !/401|404|429|Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(m.text())) errs.push(m.text()); }); return { ctx, p }; };
+// The + button opens the log menu; tiles open a form, chips log right away.
+const openLog = async (pg, kind) => { await pg.locator('nav button.fab').click(); await pg.locator('.logtile.' + kind).click(); };
+const quick = async (pg, label) => { await pg.locator('nav button.fab').click(); await pg.locator('.quick button:has-text("' + label + '")').click(); };
 const shot = (p, n) => p.screenshot({ path: `${shots}/${n}.png`, fullPage: true });
 
 // ---------- part 1: logging, with a seeded family ----------
@@ -34,7 +37,7 @@ const sync = async () => (await (await fetch(B + '/api/sync', { headers: hdrs })
 await shot(p, 'today');
 const before=(await sync()).events.filter(e=>!e.deleted).length;
 // Log a bottle feed through the sheet
-await p.locator('nav .lb.feed').click();
+await openLog(p,'feed');
 await p.locator('.sheet label:has-text("Expressed milk")').click();
 check(await p.locator('.sheet input[name=ml]').isVisible(),'ml field shows for bottle');
 check(!(await p.locator('.sheet .field:has-text("Side")').isVisible()),'side hidden for bottle');
@@ -47,7 +50,7 @@ check(/reminder/i.test(toastTxt||''),'auto reminder toast: '+toastTxt);
 await p.waitForTimeout(1500);
 let s=await sync();check(s.events.some(e=>e.note==='UI test feed'&&e.ml===125&&e.by==='Tester'),'feed saved on server');
 // Quick log + undo
-await p.locator('.quick button:has-text("Wet now")').click();await p.waitForTimeout(300);
+await quick(p,'Wet diaper');await p.waitForTimeout(300);
 await p.locator('.toast button:has-text("Undo")').click();await p.waitForTimeout(1500);
 s=await sync();check(s.events.filter(e=>!e.deleted).length===before+1,'quick log undone');
 // Edit the feed: open from Today list, change amount, save
@@ -59,16 +62,16 @@ await p.locator('.item:has-text("130 ml")').first().click();
 await p.locator('.sheet button:has-text("Delete")').click();await p.locator('.sheet button:has-text("Tap again")').click();await p.waitForTimeout(1500);
 s=await sync();check(!s.events.some(e=>e.note==='UI test feed'),'feed deleted');
 // Diaper with fever temperature shows banner
-await p.locator('nav .lb.diaper').click();await p.fill('.sheet input[name=temp]','38.4');await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(800);
+await openLog(p,'diaper');await p.fill('.sheet input[name=temp]','38.4');await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(800);
 check(await p.locator('.alert.hot').count()===1,'fever banner shown');
 check(/straight away/.test(await p.locator('.alert.hot').textContent()),'under-3-months wording');
 await p.locator('.alert.hot button:has-text("OK")').click();check(await p.locator('.alert.hot').count()===0,'fever banner dismissed');
 // Temperature validation
-await p.locator('nav .lb.diaper').click();await p.fill('.sheet input[name=temp]','100.4');await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(300);
+await openLog(p,'diaper');await p.fill('.sheet input[name=temp]','100.4');await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(300);
 check(/between 30 and 45/.test(await p.locator('.toast').textContent()),'fahrenheit rejected');await p.keyboard.press('Escape');
 check(await p.locator('.sheet').count()===0,'escape closes sheet');
 // Pump without auto -> reminder sheet opens
-await p.locator('nav .lb.pump').click();await p.fill('.sheet input[name=ml]','80');await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(600);
+await openLog(p,'pump');await p.fill('.sheet input[name=ml]','80');await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(600);
 check(await p.locator('.sheet h2:has-text("Remind me about the next pumping session")').count()===1,'reminder sheet after pumping');
 await p.locator('.sheet label:has-text("At a time")').click();
 check(await p.locator('.sheet input[type=time]').isVisible(),'time field shows');
@@ -77,7 +80,7 @@ check(/Reminder at/.test(await p.locator('.sheet .footnote').textContent()),'pre
 await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(1500);
 s=await sync();check(s.rem.due.pump>Date.now(),'pump reminder saved');
 // Note
-await p.locator('nav .lb.note').click();await p.locator('.sheet .checks label:has-text("Calm")').click();const nt='UI note '+Date.now();await p.fill('.sheet textarea',nt);await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(1200);
+await openLog(p,'note');await p.locator('.sheet .checks label:has-text("Calm")').click();const nt='UI note '+Date.now();await p.fill('.sheet textarea',nt);await p.locator('.sheet button[type=submit]').click();await p.waitForTimeout(1200);
 check(await p.locator('.nitem:has-text("'+nt+'")').count()===1,'note on Today');
 // Growth
 await p.locator('nav .in button:has-text("Growth")').click();await p.locator('button:has-text("Add measurement")').click();
@@ -109,21 +112,53 @@ await p.locator('.rep-ctl button:has-text("Last 7 days")').click();check(/7 days
 await p.fill('#view textarea','Is this OK?');check(await p.locator('.rq-print:has-text("Is this OK?")').count()===1,'questions in report');
 await p.locator('button:has-text("← Back")').click();
 // Baby: profile save
-await p.locator('nav .in button:has-text("Baby")').click();
+await p.locator('header .avatar').click();
 await p.fill('input[name=name]','Mira Test');await p.locator('button:has-text("Save details")').click();await p.waitForTimeout(1500);
 s=await sync();check(s.profile.name==='Mira Test','profile saved');
 await p.fill('input[name=name]','Mira');await p.locator('button:has-text("Save details")').click();await p.waitForTimeout(1200);
-check(await p.locator('header h1').textContent()==='Mira','header name');
+check(/^Mira\b/.test(await p.locator('header h1').textContent()),'header name');
 // Help from Baby and back
 await p.locator('button:has-text("Read how it works")').click();check(await p.locator('#h-feed').count()===1,'help page');
 await p.locator('button:has-text("← Back")').click();check(await p.locator('button:has-text("Save details")').count()===1,'back to baby');
 // Offline outbox
 await ctx.ctx.setOffline(true);await p.locator('nav .in button:has-text("Today")').click();
-await p.locator('.quick button:has-text("Dirty now")').click();await p.waitForTimeout(500);
+await quick(p,'Dirty diaper');await p.waitForTimeout(500);
 await p.evaluate(()=>window.dispatchEvent(new Event('visibilitychange')));await p.waitForTimeout(800);
 check(/Offline/.test(await p.locator('#notice').textContent()),'offline notice');
 await ctx.ctx.setOffline(false);await p.evaluate(()=>window.dispatchEvent(new Event('online')));await p.waitForTimeout(2000);
 s=await sync();check(s.events.filter(e=>e.kind==='dirty'&&Date.now()-e.t<60000).length===1,'offline entry synced');
+
+// ---------- sleep ----------
+const loc = (ms) => { const d = new Date(ms); const z = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
+await p.locator('nav button:has-text("Today")').click();
+await quick(p, 'Asleep now'); await p.waitForTimeout(1200);
+check(/is sleeping/.test(await p.locator('.sleeping').textContent()), 'sleeping card on Today');
+let sy = await sync(); check(sy.events.some((e) => e.type === 'sleep' && e.end == null && !e.deleted), 'open sleep saved on the server');
+await quick(p, 'breast'); await p.waitForTimeout(3800);
+check(/wake up for this feed/.test(await p.locator('.toast').textContent()), 'feed while asleep asks about the sleep');
+await p.locator('.toast button:has-text("End sleep")').click(); await p.waitForTimeout(1500);
+check(await p.locator('.sleeping').count() === 0, 'sleep ended from the feed prompt');
+sy = await sync(); check(sy.events.some((e) => e.type === 'sleep' && !e.deleted && e.end), 'ended sleep has a wake-up time');
+await quick(p, 'Asleep now'); await p.waitForTimeout(800);
+await p.locator('.sleeping button:has-text("Woke up")').click(); await p.waitForTimeout(800);
+check(/Slept/.test(await p.locator('.toast').textContent()) && await p.locator('.sleeping').count() === 0, 'Woke up button ends the sleep');
+// A sleep logged afterwards, then one that overlaps it
+await openLog(p, 'sleep'); await p.locator('.sheet label.check input').uncheck();
+await p.fill('.sheet input[name=t]', loc(Date.now() - 10 * 36e5)); await p.fill('.sheet input[name=end]', loc(Date.now() - 9 * 36e5));
+await p.locator('.sheet .radios label:has-text("Pram")').click();
+await p.locator('.sheet button[type=submit]').click(); await p.waitForTimeout(1200);
+sy = await sync(); check(sy.events.some((e) => e.type === 'sleep' && !e.deleted && e.where === 'pram' && Math.abs(e.end - e.t - 36e5) < 120000), 'past sleep saved with place');
+await openLog(p, 'sleep'); await p.locator('.sheet label.check input').uncheck();
+await p.fill('.sheet input[name=t]', loc(Date.now() - 9.5 * 36e5)); await p.fill('.sheet input[name=end]', loc(Date.now() - 8.5 * 36e5));
+await p.locator('.sheet button[type=submit]').click(); await p.waitForTimeout(400);
+check(/overlaps another sleep/.test(await p.locator('.toast').textContent()), 'overlapping sleep refused');
+await p.keyboard.press('Escape');
+check(await p.locator('.card:has-text("Sleep, last 24 hours")').count() === 1, 'last 24 hours sleep card');
+await p.locator('nav button:has-text("History")').click(); await p.locator('.filters button:has-text("Sleep")').click(); await p.waitForTimeout(400);
+check(await p.locator('h2:has-text("Sleep and wake pattern")').count() === 1 && await p.locator('h2:has-text("Sleep per day")').count() === 1, 'sleep charts in History');
+await p.locator('button:has-text("Visit report")').click(); await p.waitForTimeout(400);
+check(await p.locator('.rsec h2:text-is("Sleep")').count() === 1, 'sleep section in the visit report');
+await shot(p, 'report-sleep');
 
 await ctx.ctx.close();
 
@@ -150,9 +185,9 @@ await p1.locator('label:has-text("I\'ve saved the recovery code")').click();awai
 check(await p1.locator('nav.tabs').isVisible(),'in the app');
 check(/Start with your baby's name/.test(await p1.locator('main').textContent()),'empty-family prompt');
 // log a feed so the joiner has something to see
-await p1.locator('.quick button:has-text("Wet now")').click();await p1.waitForTimeout(1200);
+await quick(p1,'Wet diaper');await p1.waitForTimeout(1200);
 // invite
-await p1.locator('nav .in button:has-text("Baby")').click();await p1.waitForTimeout(800);
+await p1.locator('header .avatar').click();await p1.waitForTimeout(800);
 await p1.locator('button:has-text("Invite a family member")').click();await p1.waitForTimeout(800);
 const link=(await p1.locator('.invite-link').textContent()).trim();check(/\/join#[A-Za-z0-9_-]{20,}$/.test(link),'invite link shown');
 await p1.locator('section:has(.eyebrow:text-is("Family"))').screenshot({path:`${shots}/family-card.png`});
@@ -166,7 +201,7 @@ check(!(await p2.evaluate(()=>location.href)).includes('#'),'code removed from t
 await shot(p2,'join-dark');
 await p2.fill('input[name=member]','Daan');await p2.locator('button:has-text("Join family log")').click();await p2.waitForTimeout(1500);
 check(await p2.locator('.item:has-text("Wet")').count()===1,'joiner sees the family entries');
-await p2.locator('nav .in button:has-text("Baby")').click();await p2.waitForTimeout(800);
+await p2.locator('header .avatar').click();await p2.waitForTimeout(800);
 check(await p2.locator('.dev').count()===2,'two phones listed');
 await shot(p2,'baby-dark');
 // same link again in a third phone: used
@@ -178,7 +213,7 @@ await p3.fill('input[name=link]','nonsense');await p3.locator('button:has-text("
 check(/whole invite link/.test(await p3.locator('.login-err').textContent()),'paste validation');
 await c3.close();
 // 4. Eva removes Daan's phone -> Daan is signed out on next sync
-await p1.reload();await p1.waitForTimeout(1000);await p1.locator('nav .in button:has-text("Baby")').click();await p1.waitForTimeout(800);
+await p1.reload();await p1.waitForTimeout(1000);await p1.locator('header .avatar').click();await p1.waitForTimeout(800);
 await p1.locator('.dev:has-text("Daan") button:has-text("Remove")').click();await p1.locator('.dev:has-text("Daan") button:has-text("Tap again")').click();await p1.waitForTimeout(800);
 check(await p1.locator('.dev').count()===1,'phone removed from list');
 await p2.evaluate(()=>document.dispatchEvent(new Event('visibilitychange')));await p2.waitForTimeout(1500);
@@ -190,7 +225,7 @@ await p2.fill('input[name=code]',code.toLowerCase().replace(/-/g,' '));await p2.
 await p2.locator('main button:has-text("Sign in")').click();await p2.waitForTimeout(1500);
 check(await p2.locator('.item:has-text("Wet")').count()===1,'recovered with the code');
 // 6. Sign out on this phone
-await p2.locator('nav .in button:has-text("Baby")').click();await p2.waitForTimeout(500);
+await p2.locator('header .avatar').click();await p2.waitForTimeout(500);
 await p2.locator('button:has-text("Sign out on this phone")').click();await p2.locator('button:has-text("Tap again to sign out")').click();await p2.waitForTimeout(1200);
 check(await p2.locator('button:has-text("Create a family log")').count()===1,'signed out to start screen');
 await c2.close();

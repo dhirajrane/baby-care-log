@@ -1,12 +1,13 @@
 // History tab: filters, 14-day charts, and the log grouped by day.
-import { dayKey, fmtDay, fmtDur, fmtTemp } from '../lib/util.js';
+import { dayKey, fmtDay, fmtDur, fmtTemp, keyToMs, DAY } from '../lib/util.js';
 import { HF } from '../lib/constants.js';
-import { dayTotals, intake, feedGap } from '../lib/calc.js';
+import { dayTotals, intake, feedGap, sleepStats, fmtDurShort, sleeps } from '../lib/calc.js';
 import { S, render, openReport } from '../store.js';
 import { Item, NoteItem } from './ui.jsx';
 import { BarsChart, IntakeChart, intakeAvg } from './charts.jsx';
+import { SleepPattern, SleepBars } from './Sleep.jsx';
 
-function DayOverview({ list, f }) {
+function DayOverview({ list, f, k }) {
   const t = dayTotals(list); const r = intake(list); const g = feedGap(list);
   const breast = list.filter((e) => e.type === 'feed' && e.kind === 'breast'); const bmin = breast.reduce((a, e) => a + (+e.min || 0), 0);
   const tiles = [];
@@ -25,6 +26,13 @@ function DayOverview({ list, f }) {
     const d = list.filter((e) => e.type === 'diaper'); tile('k-wet', d.length, 'changes');
     const tv = d.filter((e) => e.temp != null).map((e) => +e.temp);
     if (tv.length) tile(Math.max(...tv) >= 38 ? 'k-hot' : 'k-wet', fmtTemp(Math.max(...tv)), `highest temp · ${tv.length} reading${tv.length > 1 ? 's' : ''}`);
+  }
+  if (f === 'all' || f === 'sleep') {
+    const A = keyToMs(k); const st = sleepStats(S, A, A + DAY);
+    if (f === 'sleep' || st.total) {
+      tile('k-sleep', st.total ? fmtDurShort(st.total) : '–', 'sleep');
+      if (f === 'sleep') { tile('k-sleep', fmtDurShort(st.night), 'night'); tile('k-sleep', fmtDurShort(st.day), `${st.naps} nap${st.naps === 1 ? '' : 's'}`); tile('k-sleep', fmtDurShort(st.longest), 'longest stretch'); tile('k-sleep', st.awake != null ? fmtDurShort(st.awake) : '–', 'usual time awake'); tile('k-sleep', st.wakings, `night waking${st.wakings === 1 ? '' : 's'}`); }
+    }
   }
   if (f === 'all' || f === 'pump') {
     if (f === 'pump' || t.pumps) tile('k-pump', t.pumped + ' ml', `pumped · ${t.pumps} session${t.pumps === 1 ? '' : 's'}`);
@@ -52,7 +60,8 @@ export default function History() {
   const bars = <section className="card" key="bars"><p className="eyebrow">Last 14 days</p><h2>Feeds and wet diapers per day</h2>
     <div className="legend"><span><i style={{ background: 'var(--feed)' }}></i>Feeds</span><span><i style={{ background: 'var(--wet)' }}></i>Wet diapers</span></div>
     <div className="chart-wrap"><BarsChart /></div></section>;
-  const charts = f === 'all' ? [milk, bars] : f === 'feed' ? milk : f === 'diaper' ? bars : null;
+  const hasSleep = sleeps(S).length > 0;
+  const charts = f === 'all' ? [milk, bars, hasSleep && <SleepPattern key="sp" />] : f === 'feed' ? milk : f === 'diaper' ? bars : f === 'sleep' ? [<SleepPattern key="sp" />, <SleepBars key="sb" />] : null;
   const dnotes = (k) => { const ns = all[k].filter((e) => e.type === 'note'); return ns.length ? <div className="dnotes">{ns.map((e) => <NoteItem key={e.id} e={e} />)}</div> : null; };
   const empty = S.loading ? 'Loading the log…' : f === 'all' ? 'No entries yet. Logged feeds, diapers, pumping sessions and notes appear here, grouped by day.' : f === 'note' ? 'No notes yet. Tap + Note at the bottom to write how the baby is doing.' : `No ${HF[f].toLowerCase()} logged yet.`;
   return <>
@@ -65,7 +74,7 @@ export default function History() {
       return (
         <section key={k} className={'card day ' + (open ? 'open' : '')}>
           <button className="dayhead dtoggle" aria-expanded={open} onClick={(ev) => toggleDay(k, ev)}><h2>{fmtDay(k)}</h2><span className="tot num">{n}<svg className="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg></span></button>
-          {(items.length > 0 || k === dayKey(Date.now())) && <DayOverview list={all[k]} f={f} />}
+          {(items.length > 0 || k === dayKey(Date.now())) && <DayOverview list={all[k]} f={f} k={k} />}
           {f === 'all' && dnotes(k)}
           {open && items.length > 0 && <div className="list">{items.map((e) => <Item key={e.id} e={e} />)}</div>}
           {items.length > 0 && <button className="daymore" aria-expanded={open} onClick={(ev) => toggleDay(k, ev)}>{open ? 'Hide log' : 'Show ' + n}</button>}

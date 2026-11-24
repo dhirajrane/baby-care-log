@@ -45,6 +45,7 @@ export function tempFlag(v) {
 
 export function evTitle(e) {
   if (e.type === 'note') return (e.tags || []).map((t) => NOTE_TAGS[t] || t).join(' · ') || 'Note';
+  if (e.type === 'sleep') return sleepTitle(e);
   if (e.type === 'feed') { const p = [FEED[e.kind] || 'Feed']; if (e.kind === 'breast' && e.side) p.push(SIDE[e.side]); if (e.min) p.push(e.min + ' min'); if (e.ml) p.push(e.ml + ' ml'); return p.join(' · '); }
   if (e.type === 'pump') { const p = ['Pumping']; if (e.side) p.push(SIDE[e.side]); if (e.min) p.push(e.min + ' min'); if (e.ml) p.push(e.ml + ' ml'); return p.join(' · '); }
   const p = [DIAPER[e.kind] || 'Diaper'];
@@ -52,7 +53,7 @@ export function evTitle(e) {
   if (e.temp != null) p.push(fmtTemp(e.temp) + (e.tempSite && e.tempSite !== 'rectal' ? ' (' + TSITE[e.tempSite].toLowerCase() + ')' : ''));
   return p.join(' · ');
 }
-export const evDot = (e) => e.type === 'note' ? 'c-note' : e.type === 'pump' ? 'c-pump' : e.type === 'feed' ? 'c-feed' : e.kind === 'wet' ? 'c-wet' : e.kind === 'dirty' ? 'c-dirty' : 'c-both';
+export const evDot = (e) => e.type === 'sleep' ? 'c-sleep' : e.type === 'note' ? 'c-note' : e.type === 'pump' ? 'c-pump' : e.type === 'feed' ? 'c-feed' : e.kind === 'wet' ? 'c-wet' : e.kind === 'dirty' ? 'c-dirty' : 'c-both';
 
 export function dayTotals(list) {
   const f = list.filter((e) => e.type === 'feed');
@@ -210,7 +211,7 @@ export function buildReport(s, from, to) {
     const t = dayTotals(L), r = intake(L); const ds = ses.filter((x) => dayKey(x.t) === k);
     let longest = 0; ses.forEach((x, i) => { if (i && dayKey(x.t) === k) longest = Math.max(longest, x.t - ses[i - 1].t); });
     const tv = L.filter((e) => e.temp != null).map((e) => +e.temp);
-    days.push({ k, complete: k < todayK, feeds: ds.length, ml: r.ml, exp: r.exp, form: r.form, bottles: r.bottles, breast: r.breast, wet: t.wet, dirty: t.dirty, pumps: t.pumps, pumped: t.pumped, maxTemp: tv.length ? Math.max(...tv) : null, longest, any: L.length > 0 });
+    days.push({ k, complete: k < todayK, feeds: ds.length, ml: r.ml, exp: r.exp, form: r.form, bottles: r.bottles, breast: r.breast, wet: t.wet, dirty: t.dirty, pumps: t.pumps, pumped: t.pumped, maxTemp: tv.length ? Math.max(...tv) : null, longest, any: L.length > 0, sleep: sleepStats(s, keyToMs(k), keyToMs(k) + DAY) });
   }
   const avg = (arr, f) => { const v = arr.map(f); return v.length ? { avg: v.reduce((a, b) => a + b, 0) / v.length, min: Math.min(...v), max: Math.max(...v), n: v.length } : null; };
   const full = days.filter((d) => d.complete);
@@ -232,5 +233,67 @@ export function buildReport(s, from, to) {
     temps: ev.filter((e) => e.temp != null).sort((a, b) => a.t - b.t), notes: ev.filter((e) => e.type === 'note').sort((a, b) => a.t - b.t),
     appts: s.appts.filter((a) => !a.planned && inR(a)), growth: gIn, before, gain, latestW,
     hasPump: days.some((d) => d.pumps), hasTemp: days.some((d) => d.maxTemp != null),
+    hasSleep: days.some((d) => d.sleep.count > 0),
+    sleep: (() => { const sd = full.filter((d) => d.sleep.count > 0); return { total: avg(sd, (d) => d.sleep.total), night: avg(sd, (d) => d.sleep.night), day: avg(sd, (d) => d.sleep.day), naps: avg(sd, (d) => d.sleep.naps), longest: avg(sd, (d) => d.sleep.longest), wakings: avg(sd, (d) => d.sleep.wakings) }; })(),
   };
 }
+
+// ---------- sleep ----------
+// A sleep is an event {type: 'sleep', t: start, end: ms or null while still asleep, where, note}.
+export const SLEEP_WHERE = { crib: 'Crib / bed', pram: 'Pram', arms: 'In arms', car: 'Car seat', other: 'Other' };
+export const sleeps = (s) => s.events.filter((e) => e.type === 'sleep');
+export const currentSleep = (s) => sleeps(s).find((e) => e.end == null) || null;
+const hm = (v, d) => { const m = /^(\d{1,2}):(\d{2})$/.exec(v || ''); return m ? (+m[1]) * 60 + (+m[2]) : d; };
+// Night window from the profile (default 19:00–07:00), in minutes after midnight.
+export function nightWindow(s) { return { start: hm(s.profile.nightStart, 19 * 60), end: hm(s.profile.nightEnd, 7 * 60) }; }
+export const nightLabel = (s) => { const w = nightWindow(s); const f = (m) => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); return `${f(w.start)}–${f(w.end)}`; };
+// The night periods that touch [A, B), as [start, end] pairs (local time, so daylight saving is handled by Date).
+function nights(s, A, B) {
+  const w = nightWindow(s); const len = ((w.end - w.start + 1440) % 1440) || 1440;
+  const out = []; const d = new Date(A - 2 * DAY); d.setHours(0, 0, 0, 0);
+  for (; d.getTime() < B; d.setDate(d.getDate() + 1)) {
+    const a = new Date(d); a.setMinutes(w.start); const b = new Date(a); b.setMinutes(b.getMinutes() + len);
+    if (b.getTime() > A && a.getTime() < B) out.push([a.getTime(), b.getTime()]);
+  }
+  return out;
+}
+const overlap = (a, b, c, d) => Math.max(0, Math.min(b, d) - Math.max(a, c));
+export const inNight = (s, t) => nights(s, t - 1, t + 1).some(([a, b]) => t >= a && t < b);
+// Sleep periods clipped to [A, B), oldest first; a sleep still going counts up to now.
+export function sleepSpans(s, A, B) {
+  const now = Date.now();
+  return sleeps(s).map((e) => ({ e, a: Math.max(e.t, A), b: Math.min(e.end == null ? now : e.end, B) })).filter((x) => x.b > x.a).sort((x, y) => x.a - y.a);
+}
+// Splits each span into night and day pieces, for charts.
+export function sleepPieces(s, A, B) {
+  const ns = nights(s, A, B); const out = [];
+  for (const x of sleepSpans(s, A, B)) {
+    let cuts = [x.a, x.b];
+    for (const [a, b] of ns) { if (a > x.a && a < x.b) cuts.push(a); if (b > x.a && b < x.b) cuts.push(b); }
+    cuts = [...new Set(cuts)].sort((p, q) => p - q);
+    for (let i = 0; i < cuts.length - 1; i++) { const m = (cuts[i] + cuts[i + 1]) / 2; out.push({ a: cuts[i], b: cuts[i + 1], night: ns.some(([a, b]) => m >= a && m < b), open: x.e.end == null && cuts[i + 1] === x.b }); }
+  }
+  return out;
+}
+// Totals for a period: total, night, day, naps, longest single sleep, night wakings, time awake between sleeps.
+export function sleepStats(s, A, B) {
+  const spans = sleepSpans(s, A, B); const ns = nights(s, A, B);
+  let total = 0, night = 0, longest = 0, naps = 0, wakings = 0; const gaps = [];
+  spans.forEach((x, i) => {
+    const len = x.b - x.a; total += len; longest = Math.max(longest, len);
+    const nm = ns.reduce((acc, [a, b]) => acc + overlap(x.a, x.b, a, b), 0); night += nm;
+    if (!inNight(s, x.e.t)) naps++;
+    const nx = spans[i + 1];
+    if (nx) { const gap = nx.e.t - (x.e.end ?? nx.e.t); if (gap > 0) { gaps.push(gap); if (inNight(s, x.e.end) && inNight(s, nx.e.t) && gap < 4 * HOUR) wakings++; } }
+  });
+  return { total, night, day: total - night, naps, longest, wakings, count: spans.length, awake: gaps.length ? median(gaps) : null };
+}
+// How long she has been awake since the last sleep ended (null while asleep or without sleeps).
+export function awakeFor(s) { if (currentSleep(s)) return null; const l = sleeps(s).find((e) => e.end != null); return l ? Date.now() - l.end : null; }
+export function sleepTitle(e) {
+  const p = ['Sleep'];
+  if (e.end == null) p.push('still sleeping'); else p.push(fmtDurShort(e.end - e.t));
+  if (e.where && SLEEP_WHERE[e.where]) p.push(SLEEP_WHERE[e.where].toLowerCase());
+  return p.join(' · ');
+}
+export const fmtDurShort = (ms) => { const m = Math.max(0, Math.round(ms / 60000)); if (m < 60) return m + ' min'; return Math.floor(m / 60) + 'h ' + String(m % 60).padStart(2, '0') + 'm'; };

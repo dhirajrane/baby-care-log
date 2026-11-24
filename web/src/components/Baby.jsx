@@ -15,7 +15,7 @@ function ProfileCard() {
       perKg = numOrNull(fd.get('mlPerKg'));
       if (!(perKg >= 100 && perKg <= 200)) { toast('Enter the ml per kg your doctor gave, between 100 and 200.'); return; }
     }
-    guarded(() => saveProfile({ name: (fd.get('name') || '').trim(), birth: fd.get('birth') || '', sex: fd.get('sex') || 'girl', guideSrc: src, mlPerKg: Math.round(perKg) }), 'Details saved');
+    guarded(() => saveProfile({ ...S.profile, name: (fd.get('name') || '').trim(), birth: fd.get('birth') || '', sex: fd.get('sex') || 'girl', guideSrc: src, mlPerKg: Math.round(perKg) }), 'Details saved');
   };
   // key: refill the form when the profile arrives from the server
   return (
@@ -28,6 +28,25 @@ function ProfileCard() {
       {src === 'doctor' && <label className="field">ml per kg body weight per day<input name="mlPerKg" type="number" inputMode="numeric" min="100" max="200" step="5" defaultValue={guideFromDoctor(p) ? p.mlPerKg : ''} placeholder="e.g. 160" /></label>}
       <p className="footnote" style={{ margin: '-6px 0 0' }}>Shown on Today as an indication of what's typical: {her} weight × ml per kg. It's not an amount {she} has to reach. Ask your consultatiebureau or huisarts what's right for {herO}, and enter their number here if they give you one.</p>
       <div><button className="btn" type="submit">Save details</button></div>
+    </form></section>
+  );
+}
+
+function NightCard() {
+  const p = S.profile; const { her } = pron(S);
+  const submit = (ev) => {
+    ev.preventDefault(); const fd = new FormData(ev.currentTarget);
+    const a = fd.get('nightStart'), b = fd.get('nightEnd');
+    if (!/^\d{2}:\d{2}$/.test(a) || !/^\d{2}:\d{2}$/.test(b) || a === b) { toast('Pick when night starts and ends.'); return; }
+    guarded(() => saveProfile({ ...S.profile, nightStart: a, nightEnd: b }), 'Night time saved');
+  };
+  return (
+    <section className="card"><form className="setup" onSubmit={submit} key={(p.nightStart || '') + (p.nightEnd || '')}>
+      <h2>Night time</h2>
+      <p style={{ margin: 0, color: 'var(--muted)', fontSize: 14 }}>Sleep that starts in this window counts as night sleep; the rest are naps. Pick what fits {her} evening and morning routine.</p>
+      <div className="row2"><label className="field">Night starts<input name="nightStart" type="time" defaultValue={p.nightStart || '19:00'} /></label>
+        <label className="field">Night ends<input name="nightEnd" type="time" defaultValue={p.nightEnd || '07:00'} /></label></div>
+      <div><button className="btn" type="submit">Save night time</button></div>
     </form></section>
   );
 }
@@ -136,6 +155,7 @@ export default function Baby() {
   return <>
     <ProfileCard />
     <AutoRemCard />
+    <NightCard />
     <section className="card"><p className="eyebrow">How it works</p><p style={{ margin: 0 }}>How the suggestions, totals, reminders and charts are calculated, with sources. You can share the page with friends.</p><div style={{ marginTop: 10 }}><button className="btn ghost" onClick={() => openHelp()}>Read how it works</button></div></section>
     <NotifyCard />
     <FamilyCard />

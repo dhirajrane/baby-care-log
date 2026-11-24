@@ -2,8 +2,8 @@
 import { useEffect, useState } from 'react';
 import { HOUR, toLocalInput, dayKey, keyToMs, fmtTime, numOrNull, uid, download } from '../lib/util.js';
 import { FEED, SIDE, DIAPER, COLORS, TSITE, NOTE_TAGS, KL, AK, AK_TITLE, REMIND_OPTS } from '../lib/constants.js';
-import { nextSide, icsFor } from '../lib/calc.js';
-import { S, AUTH, closeSheet, saveRow, removeRow, guarded, toast, afterLog, saveRem, render, deleteFamily } from '../store.js';
+import { nextSide, icsFor, currentSleep, SLEEP_WHERE, sleeps, fmtDurShort, pron } from '../lib/calc.js';
+import { S, AUTH, closeSheet, saveRow, removeRow, guarded, toast, afterLog, saveRem, render, deleteFamily, openSheet, quickLog, startSleep, endSleep, wokeForFeed } from '../store.js';
 import { Radios, Checks, ConfirmButton } from './ui.jsx';
 
 const Close = () => <button type="button" className="x" aria-label="Close" onClick={closeSheet}>×</button>;
@@ -55,7 +55,8 @@ function EntrySheet({ kind, row }) {
     closeSheet();
     const msg = editing ? 'Saved' : { growth: 'Measurement saved', feed: 'Feed logged', pump: 'Pumping session logged', note: 'Note saved', diaper: 'Diaper logged' }[kind];
     const ok = await guarded(() => saveRow(coll, id, data), msg);
-    if (ok && !editing && (kind === 'feed' || kind === 'pump')) afterLog(kind, data.t);
+    if (ok && !editing && (kind === 'feed' || kind === 'pump')) await afterLog(kind, data.t);
+    if (ok && !editing && kind === 'feed') wokeForFeed(data.t);
   };
   const del = () => { closeSheet(); guarded(() => removeRow(kind === 'growth' ? 'growth' : 'events', row.id), 'Deleted'); };
   const actions = (label, style, cls = 'btn') => (
@@ -208,11 +209,85 @@ function DeleteFamilySheet() {
   );
 }
 
+// ---------- sleep ----------
+function SleepSheet({ row }) {
+  const editing = !!row;
+  const r = row || { t: Date.now(), end: null, where: 'crib' };
+  const [still, setStill] = useState(r.end == null);
+  const { she } = pron(S);
+  const submit = async (ev) => {
+    ev.preventDefault(); const fd = new FormData(ev.currentTarget);
+    const t = new Date(fd.get('t')).getTime();
+    const end = still ? null : new Date(fd.get('end')).getTime();
+    if (!isFinite(t)) { toast('Pick when she fell asleep.'); return; }
+    if (!still && !isFinite(end)) { toast('Pick when she woke up, or switch on "still sleeping".'); return; }
+    if (!still && end <= t) { toast('Waking up has to be after falling asleep.'); return; }
+    if (!still && end - t > 24 * HOUR) { toast('A sleep can be at most 24 hours. Check the dates.'); return; }
+    if (t > Date.now() + 5 * 60000) { toast("That's in the future. Check the time."); return; }
+    const id = editing ? r.id : uid(); const stop = still ? Date.now() : end;
+    const clash = sleeps(S).find((e) => e.id !== id && e.t < stop && (e.end == null ? Date.now() : e.end) > t);
+    if (clash) { toast(`This overlaps another sleep (${fmtTime(clash.t)}${clash.end ? '–' + fmtTime(clash.end) : ', still running'}). Change the times or that sleep.`); return; }
+    if (still && currentSleep(S) && currentSleep(S).id !== id) { toast(`${she === 'he' ? 'He' : 'She'} is already marked as asleep.`); return; }
+    const data = { type: 'sleep', t, end, where: fd.get('where') || 'crib', note: String(fd.get('note') || '').trim() };
+    closeSheet();
+    await guarded(() => saveRow('events', id, data), editing ? 'Saved' : still ? `Asleep since ${fmtTime(t)}` : `Sleep of ${fmtDurShort(end - t)} logged`);
+  };
+  const del = () => { closeSheet(); guarded(() => removeRow('events', r.id), 'Deleted'); };
+  return (
+    <form onSubmit={submit}><Head>{editing ? 'Edit sleep' : 'Log sleep'}</Head>
+      <div className="row2">
+        <label className="field">Fell asleep<input name="t" type="datetime-local" defaultValue={toLocalInput(r.t)} required /></label>
+        {still ? <div className="field">Woke up<span className="still">Still sleeping</span></div>
+          : <label className="field">Woke up<input name="end" type="datetime-local" defaultValue={toLocalInput(r.end || Date.now())} required /></label>}
+      </div>
+      <label className="check"><input type="checkbox" checked={still} onChange={(e) => setStill(e.target.checked)} />{she === 'he' ? 'He' : 'She'}'s still sleeping</label>
+      <div className="field">Where<Radios name="where" opts={SLEEP_WHERE} value={r.where || 'crib'} /></div>
+      <label className="field">Note (optional)<textarea name="note" placeholder="e.g. fell asleep after the feed" defaultValue={r.note || ''} /></label>
+      <div className="form-actions">{editing && <ConfirmButton className="btn danger" label="Delete" armedLabel="Tap again to delete" onConfirm={del} />}
+        <button className="btn" type="submit" style={{ background: 'var(--sleep)' }}>{editing ? 'Save changes' : 'Save sleep'}</button></div>
+    </form>
+  );
+}
+
+// ---------- the + button: what do you want to log? ----------
+const TILE_ICON = {
+  feed: <path d="M9 3h6M10 3v3l-2 3v10a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V9l-2-3V3M8 12h8" />,
+  diaper: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z" />,
+  sleep: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
+  pump: <><circle cx="12" cy="13" r="6" /><path d="M12 7V3M9 3h6" /></>,
+  note: <><path d="M5 4h10l4 4v12H5z" /><path d="M9 12h6M9 16h4" /></>,
+  growth: <path d="M4 17c4-1 6-4 8-8s4-5 8-5" />,
+};
+export const TileIcon = ({ k }) => <svg viewBox="0 0 24 24" aria-hidden="true">{TILE_ICON[k]}</svg>;
+function LogMenu() {
+  const asleep = currentSleep(S);
+  const pick = (k) => { if (k === 'sleep' && !asleep) { openSheet('sleep'); return; } if (k === 'sleep') { openSheet('sleep', asleep); return; } openSheet(k); };
+  const now = (fn) => { closeSheet(); fn(); };
+  return (
+    <div className="logmenu-wrap">
+      <Head>What do you want to log?</Head>
+      <div className="logmenu" style={{ marginTop: 14 }}>
+        {[['feed', 'Feed'], ['diaper', 'Diaper'], ['sleep', 'Sleep'], ['pump', 'Pump'], ['note', 'Note'], ['growth', 'Growth']].map(([k, l]) =>
+          <button key={k} type="button" className={'logtile ' + k} onClick={() => pick(k)}><TileIcon k={k} />{l}</button>)}
+      </div>
+      <p className="sub-label" style={{ marginTop: 18 }}>One tap, right now</p>
+      <div className="quick">
+        {asleep ? <button className="chip sleepchip" onClick={() => now(() => endSleep())}><span className="dot c-sleep"></span>Woke up now</button>
+          : <button className="chip sleepchip" onClick={() => now(() => startSleep())}><span className="dot c-sleep"></span>Asleep now</button>}
+        <button className="chip" onClick={() => now(() => quickLog('wet'))}><span className="dot c-wet"></span>Wet diaper</button>
+        <button className="chip" onClick={() => now(() => quickLog('dirty'))}><span className="dot c-dirty"></span>Dirty diaper</button>
+        <button className="chip" onClick={() => now(() => quickLog('both'))}><span className="dot c-both"></span>Wet + dirty</button>
+        <button className="chip" onClick={() => now(() => quickLog('breast'))}><span className="dot c-feed"></span>{SIDE[nextSide(S)]} breast</button>
+      </div>
+    </div>
+  );
+}
+
 export default function SheetHost() {
   const sh = S.sheet;
   useEffect(() => { const k = (e) => { if (e.key === 'Escape') closeSheet(); }; document.addEventListener('keydown', k); return () => document.removeEventListener('keydown', k); }, []);
   if (!sh) return null;
-  const body = sh.kind === 'rem' ? <RemSheet kind={sh.row.kind} base={sh.row.base} /> : sh.kind === 'appt' ? <ApptSheet row={sh.row} /> : sh.kind === 'deleteFamily' ? <DeleteFamilySheet /> : <EntrySheet kind={sh.kind} row={sh.row} />;
+  const body = sh.kind === 'rem' ? <RemSheet kind={sh.row.kind} base={sh.row.base} /> : sh.kind === 'appt' ? <ApptSheet row={sh.row} /> : sh.kind === 'deleteFamily' ? <DeleteFamilySheet /> : sh.kind === 'logmenu' ? <LogMenu /> : sh.kind === 'sleep' ? <SleepSheet row={sh.row} /> : <EntrySheet kind={sh.kind} row={sh.row} />;
   return (
     <div className="scrim" onClick={(e) => { if (e.target === e.currentTarget) closeSheet(); }}>
       <div className="sheet" role="dialog" aria-modal="true" key={sh.key}>{body}</div>

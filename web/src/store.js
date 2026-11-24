@@ -2,8 +2,9 @@
 // State lives in one mutable object `S`; call render() after changing it and every component
 // using useApp() re-renders.
 import { useSyncExternalStore } from 'react';
-import { DAY, HOUR, dayKey, fmtTime, lsGet, lsSet, lsDel } from './lib/util.js';
-import { KL } from './lib/constants.js';
+import { DAY, HOUR, dayKey, fmtTime, lsGet, lsSet, lsDel, uid } from './lib/util.js';
+import { KL, SIDE, DIAPER } from './lib/constants.js';
+import { currentSleep, nextSide, fmtDurShort } from './lib/calc.js';
 
 const REM_DEFAULT = { feed: { auto: false, hours: 3 }, pump: { auto: false, hours: 3 }, due: { feed: null, pump: null } };
 export const mergeRem = (d) => ({ feed: { ...REM_DEFAULT.feed, ...((d && d.feed) || {}) }, pump: { ...REM_DEFAULT.pump, ...((d && d.pump) || {}) }, due: { feed: null, pump: null, ...((d && d.due) || {}) }, tz: (d && d.tz) || undefined });
@@ -108,9 +109,10 @@ export function openReport() { S.prevTab = S.tab; S.rep = null; S.tab = 'report'
 export function openSheet(kind, row) { S.sheet = { kind, row: row || null, key: Date.now() }; render(); }
 export function closeSheet() { if (S.sheet) { S.sheet = null; render(); } }
 let toastTimer;
-export function toast(msg, undo) {
-  clearTimeout(toastTimer); S.toast = { msg, undo }; render();
-  toastTimer = setTimeout(() => { S.toast = null; render(); }, undo ? 6000 : 3200);
+// undo: an optional action shown as a button; label defaults to "Undo".
+export function toast(msg, undo, label) {
+  clearTimeout(toastTimer); S.toast = { msg, undo, label: label || 'Undo' }; render();
+  toastTimer = setTimeout(() => { S.toast = null; render(); }, undo ? 7000 : 3200);
 }
 export function hideToast() { clearTimeout(toastTimer); S.toast = null; render(); }
 
@@ -261,3 +263,28 @@ export function checkDue() {
 export function seeFever(id) { S.feverSeen.add(id); lsSet('babycarelog.feverSeen', JSON.stringify([...S.feverSeen].slice(-20))); render(); }
 export const todayKey = () => dayKey(Date.now());
 export { DAY };
+
+// ---------- one-tap logging and sleep ----------
+export async function quickLog(q) {
+  const id = uid(); const now = Date.now();
+  const data = q === 'breast' ? { type: 'feed', kind: 'breast', side: nextSide(S), t: now, note: '' } : { type: 'diaper', kind: q, t: now, note: '' };
+  const ok = await guarded(() => saveRow('events', id, data), q === 'breast' ? `${SIDE[data.side]} breast feed logged` : `${DIAPER[q]} diaper logged`, () => guarded(() => removeRow('events', id), 'Removed'));
+  if (ok && q === 'breast') { await afterLog('feed', data.t); wokeForFeed(data.t); }
+}
+export async function startSleep(t) {
+  if (currentSleep(S)) { toast('She is already marked as asleep.'); return; }
+  const id = uid(); const at = t || Date.now();
+  await guarded(() => saveRow('events', id, { type: 'sleep', t: at, end: null, where: 'crib', note: '' }), `Asleep since ${fmtTime(at)}`, () => guarded(() => removeRow('events', id), 'Removed'));
+}
+export async function endSleep(t) {
+  const cur = currentSleep(S); if (!cur) return;
+  const at = Math.max(t || Date.now(), cur.t + 60000);
+  const { id, ...data } = cur;
+  await guarded(() => saveRow('events', id, { ...data, end: at }), `Slept ${fmtDurShort(at - cur.t)}`, () => guarded(() => saveRow('events', id, { ...data, end: null }), 'Still asleep'));
+}
+// A feed logged while she is marked as asleep: offer to end the sleep at the feed time.
+export function wokeForFeed(t) {
+  const cur = currentSleep(S);
+  if (!cur || t <= cur.t) return;
+  setTimeout(() => toast(`Did she wake up for this feed? The sleep from ${fmtTime(cur.t)} is still running.`, () => endSleep(t), 'End sleep'), 3300);
+}

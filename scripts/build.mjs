@@ -15,7 +15,7 @@ for (const f of readdirSync('public')) {
 }
 
 // Fonts are served by the app itself (no Google Fonts request, so no IP address goes to Google).
-const FONTS = [['Figtree', 'figtree', [400, 500, 600, 700]], ['Bricolage Grotesque', 'bricolage-grotesque', [500, 700]]];
+const FONTS = [['Nunito', 'nunito', [400, 500, 600, 700, 800]]];
 let fontCss = '';
 for (const [family, pkg, weights] of FONTS) for (const w of weights) {
   const file = `${pkg}-latin-${w}-normal.woff2`;

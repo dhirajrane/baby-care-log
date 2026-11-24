@@ -4,7 +4,7 @@ import { S, render, toast, openPrivacy } from '../store.js';
 
 const Src = ({ k }) => <a href={HELP_SRC[k][1]} target="_blank" rel="noopener">{HELP_SRC[k][0]}</a>;
 const Sec = ({ id, title, children }) => <section className="card help" id={'h-' + id}><h2>{title}</h2>{children}</section>;
-const TOC = [['feed', 'Next feed suggestion'], ['milk', 'Milk totals'], ['rem', 'Reminders'], ['cal', 'Appointments and vaccinations'], ['growth', 'Growth charts'], ['temp', 'Temperature'], ['notes', 'Day notes'], ['report', 'Visit report'], ['data', 'Your data'], ['src', 'Sources']];
+const TOC = [['feed', 'Next feed suggestion'], ['milk', 'Milk totals'], ['rem', 'Reminders'], ['cal', 'Appointments and vaccinations'], ['sleep', 'Sleep'], ['growth', 'Growth charts'], ['temp', 'Temperature'], ['notes', 'Day notes'], ['report', 'Visit report'], ['data', 'Your data'], ['src', 'Sources']];
 
 function back() { S.tab = S.prevTab || 'today'; if (location.pathname !== '/') history.replaceState(null, '', '/'); render(); window.scrollTo(0, 0); }
 async function copy() { const u = location.origin + '/help'; try { await navigator.clipboard.writeText(u); toast('Link copied: ' + u); } catch (e) { toast(u); } }
@@ -80,6 +80,17 @@ export default function Help() {
       </ul>
     </Sec>
 
+    <Sec id="sleep" title="Sleep">
+      <ul>
+        <li><b>Logging:</b> tap <b>+</b> → <b>Asleep now</b> when the baby falls asleep, and <b>Woke up</b> on Today when they wake. Every family phone sees that the baby is asleep. You can also log a sleep afterwards with its start and end time, and change any sleep by tapping it.</li>
+        <li><b>Night and naps:</b> sleep that starts inside the night window (19:00–07:00 unless you change it under <b>Baby → Night time</b>) is night sleep; the rest are naps. Totals split a sleep that crosses into or out of the night window by the minute.</li>
+        <li><b>Sleep per day</b> runs from midnight to midnight, so a night sleep that crosses midnight is split over both days. "Last 24 hours" on Today counts back from now.</li>
+        <li><b>Longest sleep</b> is the longest single sleep. <b>Night wakings</b> counts the times the baby woke at night and fell asleep again within 4 hours. <b>Usual time awake</b> is the middle value (median) of the time between sleeps.</li>
+        <li>If you log a feed while the baby is marked as asleep, the app asks whether they woke up for it. A sleep still running after 12 hours gets a reminder to set the wake-up time.</li>
+        <li>The app shows the baby's own sleep, without comparing it to a norm: every baby sleeps differently. If you're worried about sleep, ask the consultatiebureau.</li>
+      </ul>
+    </Sec>
+
     <Sec id="growth" title="Growth charts">
       <ul>
         <li>Weight is entered in grams. Length and head circumference are in cm.</li>
@@ -111,6 +122,7 @@ export default function Help() {
         <li>History → <b>Visit report for the doctor</b> (or Calendar → Prepare a visit report) builds a one-page summary for a chosen period. By default it covers the time since the last consultatiebureau, doctor or midwife appointment in Calendar.</li>
         <li><b>Averages per day</b> use complete days that have entries for that item, so a day you didn't log doesn't pull the average down. Today isn't counted in averages because it isn't over yet. The range in brackets is the lowest and highest day.</li>
         <li><b>Weight gain per week</b> runs from the last weight before the period (if there is one) to the latest weight in it. The percentile line compares the latest weight with the WHO weight-for-age reference.</li>
+        <li><b>Sleep</b> shows the average per day of total sleep, night sleep, naps, the longest sleep and night wakings, over days that have sleep logged.</li>
         <li><b>Longest stretch</b> is the longest gap between feeds that ended on that day, averaged over the days. Top-ups within 30 minutes count as one feed.</li>
         <li>Use <b>Save as PDF / print</b> to keep or send a copy. Questions you type for the doctor are saved on this phone only.</li>
       </ul>
