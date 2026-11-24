@@ -13,7 +13,7 @@ const shots = process.env.SHOTS || '/tmp/bcl-shots'; mkdirSync(shots, { recursiv
 let ok = 0, fail = 0; const check = (c, m) => { if (c) ok++; else { fail++; console.error('FAIL', m); } };
 const ip = () => '10.9.' + Math.floor(Math.random() * 250) + '.' + Math.floor(Math.random() * 250);
 const b = await chromium.launch(); const errs = [];
-const newPhone = async (scheme = 'light') => { const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: scheme, permissions: ['clipboard-read', 'clipboard-write'] }); const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(String(e))); p.on('console', (m) => { if (m.type() === 'error' && !/401|404|429|Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(m.text())) errs.push(m.text()); }); return { ctx, p }; };
+const newPhone = async (scheme = 'light') => { const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, colorScheme: scheme, permissions: ['clipboard-read', 'clipboard-write'] }); await ctx.addInitScript(() => { try { if (!localStorage.getItem('babycarelog.night')) localStorage.setItem('babycarelog.night', 'off'); } catch (e) {} }); const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(String(e))); p.on('console', (m) => { if (m.type() === 'error' && !/401|404|429|Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(m.text())) errs.push(m.text()); }); return { ctx, p }; };
 // The + button opens the log menu; tiles open a form, chips log right away.
 const openLog = async (pg, kind) => { await pg.locator('nav button.fab').click(); await pg.locator('.logtile.' + kind).click(); };
 const quick = async (pg, label) => { await pg.locator('nav button.fab').click(); await pg.locator('.quick button:has-text("' + label + '")').click(); };
@@ -159,6 +159,26 @@ check(await p.locator('h2:has-text("Sleep and wake pattern")').count() === 1 && 
 await p.locator('button:has-text("Visit report")').click(); await p.waitForTimeout(400);
 check(await p.locator('.rsec h2:text-is("Sleep")').count() === 1, 'sleep section in the visit report');
 await shot(p, 'report-sleep');
+
+// ---------- night view ----------
+await p.evaluate(() => localStorage.setItem('babycarelog.night', 'on')); await p.goto(B + '/'); await p.waitForTimeout(1200);
+check(await p.locator('.night-grid .night-btn').count() === 4, 'night view shows four big buttons');
+check(await p.evaluate(() => document.documentElement.dataset.theme) === 'dark', 'night view uses the dark colours');
+await shot(p, 'night');
+await p.locator('.night-btn:has-text("Asleep now")').click(); await p.waitForTimeout(800);
+check(await p.locator('.night-btn:has-text("Woke up")').count() === 1, 'night view: asleep now, then Woke up');
+await p.locator('.night-btn:has-text("Woke up")').click(); await p.waitForTimeout(800);
+await p.locator('button:has-text("Show all of today")').click(); await p.waitForTimeout(300);
+check(await p.locator('.tiles3').count() === 1, 'show all of today from night view');
+await p.locator('header .avatar').click(); await p.waitForTimeout(300);
+await p.locator('.seg-tabs[aria-label="Night view"] button:has-text("Off")').click(); await p.waitForTimeout(300);
+check(await p.evaluate(() => localStorage.getItem('babycarelog.night')) === 'off' && await p.evaluate(() => document.documentElement.dataset.theme) !== 'dark', 'night view off from Baby');
+// ---------- share an idea ----------
+await p.locator('button:has-text("Share an idea")').first().click(); await p.waitForTimeout(500);
+await p.locator('.radios label:has-text("Something is wrong")').click();
+await p.fill('textarea', 'Test idea from the browser'); await p.locator('button:has-text("Send")').click(); await p.waitForTimeout(1200);
+check(/Thank you/.test(await p.locator('main').textContent()) && /Test idea from the browser/.test(await p.locator('main').textContent()), 'idea sent and listed');
+await shot(p, 'feedback');
 
 await ctx.ctx.close();
 

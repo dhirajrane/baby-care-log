@@ -17,6 +17,7 @@ if (location.pathname.replace(/\/+$/, '') === '/join') {
 }
 if (location.pathname.replace(/\/+$/, '') === '/help' || params.get('tab') === 'help') S.tab = 'help';
 if (location.pathname.replace(/\/+$/, '') === '/privacy') S.tab = 'privacy';
+if (location.pathname.replace(/\/+$/, '') === '/admin') S.tab = 'admin';
 const tq = params.get('tab');
 if (tq && signedIn() && ['today', 'history', 'growth', 'calendar', 'baby'].includes(tq)) { history.replaceState(null, '', '/'); S.tab = tq; }
 const lq = params.get('log');

@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { S, render, toast, api } from '../store.js';
 
-export const PRIVACY_UPDATED = '20 November 2026';
+export const PRIVACY_UPDATED = '24 November 2026';
 const Sec = ({ title, children }) => <section className="card help"><h2>{title}</h2>{children}</section>;
 
 function back() { S.tab = S.prevTab || 'today'; if (location.pathname !== '/') history.replaceState(null, '', '/'); render(); window.scrollTo(0, 0); }
@@ -31,10 +31,11 @@ export default function Privacy() {
     <Sec title="What the app stores">
       <ul>
         <li><b>About your family:</b> the family name, the name each person types when they join, and for each phone when it joined and when it was last active.</li>
-        <li><b>About your baby:</b> name, birth date and sex, and everything you log: feeds, diapers, pumping, temperature, weight and length, day notes and appointments. This is health information about your child.</li>
+        <li><b>About your baby:</b> name, birth date and sex, and everything you log: feeds, diapers, sleep, pumping, temperature, weight and length, day notes and appointments. This is health information about your child.</li>
+        <li><b>If you use Share an idea:</b> your message, your name and when you sent it. Only the person who runs the app reads these. Your baby's log is never attached.</li>
         <li><b>For reminders:</b> the notification address of each phone that turns notifications on.</li>
         <li><b>To stop misuse:</b> when someone creates a family, joins or uses a recovery code, the app counts attempts per internet (IP) address. The count is deleted within a day.</li>
-        <li><b>On your phone:</b> a copy of the log, so the app works offline. Questions you type for the doctor in the visit report stay on your phone only.</li>
+        <li><b>On your phone:</b> a copy of the log, so the app works offline, and whether night view is on. Questions you type for the doctor in the visit report stay on your phone only.</li>
       </ul>
       <p>The app does <b>not</b> ask for an email address, phone number or password. It has no advertising, no analytics and no tracking, and it doesn't load anything from other websites{bot ? ", except Cloudflare's check that you're not a robot on the Create a family log screen" : ''}.</p>
     </Sec>

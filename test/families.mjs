@@ -114,11 +114,33 @@ await j('/api/appts/by', { method: 'DELETE', token: Bf.token });
 await tick();
 check(got.B.length === 2, 'deleted appointment sends nothing');
 
+// Share an idea: each family sees only its own messages; the owner reads all of them with ADMIN_KEY
+check((await j('/api/feedback', { method: 'POST', token: A.token, body: { kind: 'idea', text: 'x' } })).s === 400, 'feedback needs text');
+check((await j('/api/feedback', { method: 'POST', token: A.token, body: { kind: 'idea', text: 'Vitamin D reminder please' } })).s === 200, 'feedback sent');
+await j('/api/feedback', { method: 'POST', token: Bf.token, body: { kind: 'problem', text: 'B family problem' } });
+const fa = (await j('/api/feedback', { token: A.token })).d.feedback;
+check(fa.length === 1 && fa[0].text === 'Vitamin D reminder please' && fa[0].member === 'Anna', 'A sees only its own feedback');
+check((await j('/api/feedback', { method: 'POST', body: { text: 'anon' } })).s === 401, 'feedback needs sign-in');
+const adm = async (key) => { const r = await fetch(B + '/api/admin/feedback', { headers: { 'x-admin-key': key } }); return { s: r.status, d: r.ok ? await r.json() : null }; };
+check((await adm('wrong-key-wrong')).s === 401, 'admin needs the right key');
+const ADMIN = process.env.ADMIN_KEY || 'local-admin-key-123';
+const ad = await adm(ADMIN);
+if (ad.s === 200) check(ad.d.feedback.some((f) => f.text === 'B family problem' && f.family === 'Family B'), 'admin sees all feedback with family name');
+else console.log('  (admin check skipped: ADMIN_KEY not set for this server)');
+// Night time is saved with the profile
+await j('/api/profile', { method: 'PUT', token: A.token, body: { name: 'Alma', birth: '2026-10-01', sex: 'girl', nightStart: '20:30', nightEnd: '06:45' } });
+const pf = (await j('/api/sync', { token: A.token })).d.profile;
+check(pf.nightStart === '20:30' && pf.nightEnd === '06:45', 'night window saved');
+await j('/api/profile', { method: 'PUT', token: A.token, body: { name: 'Alma', nightStart: '25:00', nightEnd: 'x' } });
+const pf2 = (await j('/api/sync', { token: A.token })).d.profile;
+check(pf2.nightStart === '19:00' && pf2.nightEnd === '07:00', 'invalid night window falls back to 19:00-07:00');
+
 // Delete a family
 check((await j('/api/family', { method: 'DELETE', token: Bf.token, body: {} })).s === 400, 'delete needs confirmation');
 check((await j('/api/family', { method: 'DELETE', token: Bf.token, body: { confirm: 'delete' } })).s === 200, 'family deleted');
 check((await j('/api/sync', { token: Bf.token })).s === 401, 'deleted family is signed out');
 check((await j('/api/sync', { token: A.token })).d.events.length === 1, 'other family untouched');
+if (ad.s === 200) check(!(await adm(ADMIN)).d.feedback.some((f) => f.text === 'B family problem'), "deleted family's feedback is gone");
 await j('/api/family', { method: 'PUT', token: A.token, body: { name: 'Family A renamed' } });
 check((await j('/api/sync', { token: A.token })).d.family.name === 'Family A renamed', 'family renamed');
 

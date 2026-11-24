@@ -3,7 +3,8 @@
 import { fmtTime, fmtTemp, ago, dayKey, keyToMs, DAY } from '../lib/util.js';
 import { SIDE, DIAPER, TSITE, FEED } from '../lib/constants.js';
 import { feeds, diapers, temps, nextSide, dayTotals, evTitle, sleepStats, fmtDurShort, currentSleep, awakeFor } from '../lib/calc.js';
-import { S, go, openSheet } from '../store.js';
+import { S, go, openSheet, nightActive, showFullToday } from '../store.js';
+import NightToday from './Night.jsx';
 import { Item, NoteItem } from './ui.jsx';
 import { ComingUp } from './Calendar.jsx';
 import SuggestCard from './SuggestCard.jsx';
@@ -13,12 +14,14 @@ import { SleepingNow, Sleep24 } from './Sleep.jsx';
 const short = (ms) => ago(ms).replace(' ago', '');
 
 export default function Today() {
+  if (nightActive() && !S.nightFull) return <NightToday />;
   const tk = dayKey(Date.now()); const today = S.events.filter((e) => dayKey(e.t) === tk); const t = dayTotals(today);
   const last = feeds(S)[0]; const ns = nextSide(S);
   const lastD = diapers(S)[0]; const lastP = S.events.find((e) => e.type === 'pump'); const lt = temps(S)[0];
   const notes = today.filter((e) => e.type === 'note'); const entries = today.filter((e) => e.type !== 'note');
   const sl = sleepStats(S, keyToMs(tk), keyToMs(tk) + DAY); const aw = awakeFor(S);
   return <>
+    {nightActive() && S.nightFull && <div className="rem-btns"><button className="chip" onClick={() => showFullToday(false)}>Back to night view</button></div>}
     {!S.profile.name && !S.loading && <section className="card setup"><h2>Start with your baby's name and birth date</h2><p className="sub" style={{ margin: 0, color: 'var(--muted)' }}>The age and the growth reference curves use these.</p><div><button className="btn" onClick={() => go('baby')}>Add details</button></div></section>}
     <SleepingNow />
     <div className="tiles3">

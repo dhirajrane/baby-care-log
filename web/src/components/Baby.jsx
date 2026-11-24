@@ -1,7 +1,7 @@
 // Baby tab: profile, automatic reminders, notifications on this phone, and family/account settings.
 import { HOUR, numOrNull, dayKey, download } from '../lib/util.js';
 import { useState } from 'react';
-import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet, openPrivacy } from '../store.js';
+import { S, AUTH, PUSH, render, openHelp, saveProfile, saveRem, guarded, toast, api, resync, signOut, pushSupport, enablePush, disablePush, testPush, makeInvite, removeDevice, newRecoveryCode, renameFamily, openSheet, openPrivacy, setNightPref } from '../store.js';
 import { Radios, ConfirmButton } from './ui.jsx';
 import { guideFromDoctor, pron } from '../lib/calc.js';
 
@@ -156,7 +156,12 @@ export default function Baby() {
     <ProfileCard />
     <AutoRemCard />
     <NightCard />
+    <section className="card"><h2>Night view</h2>
+      <p style={{ margin: '6px 0 10px', color: 'var(--muted)', fontSize: 14 }}>Dim colours and big buttons for night feeds, so you don't light up the room. This setting is for this phone only.</p>
+      <div className="seg-tabs" role="group" aria-label="Night view">{[['auto', '22:00–06:00'], ['on', 'Always'], ['off', 'Off']].map(([v, l]) => <button key={v} aria-pressed={S.nightPref === v} onClick={() => setNightPref(v)}>{l}</button>)}</div>
+    </section>
     <section className="card"><p className="eyebrow">How it works</p><p style={{ margin: 0 }}>How the suggestions, totals, reminders and charts are calculated, with sources. You can share the page with friends.</p><div style={{ marginTop: 10 }}><button className="btn ghost" onClick={() => openHelp()}>Read how it works</button></div></section>
+    <section className="card"><p className="eyebrow">Share an idea</p><p style={{ margin: 0 }}>Missing something, or found a bug? Send a message to the people who make the app.</p><div style={{ marginTop: 10 }}><button className="btn ghost" onClick={() => { S.tab = 'feedback'; render(); window.scrollTo(0, 0); }}>Share an idea</button></div></section>
     <NotifyCard />
     <FamilyCard />
   </>;

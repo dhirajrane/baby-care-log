@@ -34,6 +34,9 @@ const SCHEMA = [
   `CREATE INDEX IF NOT EXISTS alarms_fire ON alarms(fire)`,
   `CREATE TABLE IF NOT EXISTS sent (k TEXT PRIMARY KEY, at INTEGER NOT NULL)`,
   `CREATE TABLE IF NOT EXISTS rate (k TEXT PRIMARY KEY, n INTEGER NOT NULL, reset INTEGER NOT NULL)`,
+  // "Share an idea" messages. Only the message, the member's name and the app version: never the log.
+  `CREATE TABLE IF NOT EXISTS feedback (id TEXT PRIMARY KEY, family TEXT NOT NULL, member TEXT, kind TEXT NOT NULL, text TEXT NOT NULL, created INTEGER NOT NULL, done INTEGER)`,
+  `CREATE INDEX IF NOT EXISTS feedback_family ON feedback(family, created)`,
 ];
 const REM_DEFAULT = { feed: { auto: false, hours: 3 }, pump: { auto: false, hours: 3 }, due: { feed: null, pump: null }, tz: 'Europe/Amsterdam' };
 const KL = { feed: 'feed', pump: 'pumping session' };
@@ -79,6 +82,7 @@ async function ensureSchema(env) {
   if (!env.DB) throw new Error('NO_DB');
   await env.DB.prepare(SCHEMA[0]).run();
   let ver = await kvGet(env, 'schema');
+  if (ver === SCHEMA_VERSION) await env.DB.batch(SCHEMA.map((s) => env.DB.prepare(s))); // adds tables introduced since (all IF NOT EXISTS)
   if (ver !== SCHEMA_VERSION) {
     if (await isLegacy(env)) {
       try { await migrateV1(env); } catch (e) { if ((await kvGet(env, 'schema')) !== SCHEMA_VERSION) throw e; } // another request may have migrated first
@@ -361,6 +365,19 @@ async function handleApi(req, env, url) {
     return json({ ok: true, ...d, family: f.name });
   }
 
+  // ----- app owner: read feedback (needs the ADMIN_KEY secret) -----
+  if (path.startsWith('/admin/')) {
+    const key = req.headers.get('x-admin-key') || '';
+    if (!env.ADMIN_KEY || key.length < 12 || (await sha256(key)) !== (await sha256(env.ADMIN_KEY))) { await slow(); return fail(401, 'unauthorized'); }
+    if (path === '/admin/feedback' && method === 'GET') {
+      const rows = (await env.DB.prepare('SELECT f.id, f.kind, f.text, f.member, f.created, f.done, fa.name AS family FROM feedback f LEFT JOIN families fa ON fa.id = f.family ORDER BY f.created DESC LIMIT 500').all()).results;
+      return json({ feedback: rows, families: (await env.DB.prepare('SELECT COUNT(*) AS n FROM families').first()).n });
+    }
+    const mm = path.match(/^\/admin\/feedback\/([A-Za-z0-9_-]{1,40})$/);
+    if (mm && method === 'PUT') { const b = await readBody(req); await env.DB.prepare('UPDATE feedback SET done = ? WHERE id = ?').bind(b.done ? Date.now() : null, mm[1]).run(); return json({ ok: true }); }
+    return fail(404, 'not_found');
+  }
+
   // ----- signed-in endpoints -----
   const who = await authenticate(req, env);
   if (!who) return fail(401, 'unauthorized');
@@ -490,10 +507,25 @@ async function handleApi(req, env, url) {
     // Deletes the family log and everything in it, for every member.
     const b = await readBody(req);
     if (b.confirm !== 'delete') return fail(400, 'confirm_required');
-    await env.DB.batch(['events', 'growth', 'appts', 'family_kv', 'devices', 'invites', 'subs', 'due', 'alarms'].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE family = ?`).bind(fam))
+    await env.DB.batch(['events', 'growth', 'appts', 'family_kv', 'devices', 'invites', 'subs', 'due', 'alarms', 'feedback'].map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE family = ?`).bind(fam))
       .concat([env.DB.prepare('DELETE FROM families WHERE id = ?').bind(fam), env.DB.prepare("DELETE FROM sent WHERE k LIKE ? || ':%'").bind(fam)]));
     if ((await kvGet(env, 'legacy_family')) === fam) await env.DB.prepare("DELETE FROM kv WHERE k = 'legacy_family'").run();
     return json({ ok: true });
+  }
+
+  // ----- share an idea -----
+  if (path === '/feedback' && method === 'POST') {
+    const b = await readBody(req);
+    const text = String(b.text || '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, 2000);
+    if (text.length < 3) return fail(400, 'text_required');
+    const kind = ['idea', 'problem', 'praise'].includes(b.kind) ? b.kind : 'idea';
+    if (await limited(env, 'feedback:' + fam, 20, DAY)) return fail(429, 'too_many');
+    await env.DB.prepare('INSERT INTO feedback (id, family, member, kind, text, created) VALUES (?, ?, ?, ?, ?, ?)').bind(randomId(), fam, who.member || cleanName(b.member) || null, kind, text, Date.now()).run();
+    return json({ ok: true });
+  }
+  if (path === '/feedback' && method === 'GET') {
+    const rows = (await env.DB.prepare('SELECT id, kind, text, member, created, done FROM feedback WHERE family = ? ORDER BY created DESC LIMIT 50').bind(fam).all()).results;
+    return json({ feedback: rows });
   }
 
   // ----- notifications -----

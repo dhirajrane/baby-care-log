@@ -219,8 +219,8 @@ function SleepSheet({ row }) {
     ev.preventDefault(); const fd = new FormData(ev.currentTarget);
     const t = new Date(fd.get('t')).getTime();
     const end = still ? null : new Date(fd.get('end')).getTime();
-    if (!isFinite(t)) { toast('Pick when she fell asleep.'); return; }
-    if (!still && !isFinite(end)) { toast('Pick when she woke up, or switch on "still sleeping".'); return; }
+    if (!isFinite(t)) { toast(`Pick when ${she} fell asleep.`); return; }
+    if (!still && !isFinite(end)) { toast(`Pick when ${she} woke up, or switch on "still sleeping".`); return; }
     if (!still && end <= t) { toast('Waking up has to be after falling asleep.'); return; }
     if (!still && end - t > 24 * HOUR) { toast('A sleep can be at most 24 hours. Check the dates.'); return; }
     if (t > Date.now() + 5 * 60000) { toast("That's in the future. Check the time."); return; }

@@ -4,7 +4,7 @@
 import { useSyncExternalStore } from 'react';
 import { DAY, HOUR, dayKey, fmtTime, lsGet, lsSet, lsDel, uid } from './lib/util.js';
 import { KL, SIDE, DIAPER } from './lib/constants.js';
-import { currentSleep, nextSide, fmtDurShort } from './lib/calc.js';
+import { currentSleep, nextSide, fmtDurShort, pron } from './lib/calc.js';
 
 const REM_DEFAULT = { feed: { auto: false, hours: 3 }, pump: { auto: false, hours: 3 }, due: { feed: null, pump: null } };
 export const mergeRem = (d) => ({ feed: { ...REM_DEFAULT.feed, ...((d && d.feed) || {}) }, pump: { ...REM_DEFAULT.pump, ...((d && d.pump) || {}) }, due: { feed: null, pump: null, ...((d && d.due) || {}) }, tz: (d && d.tz) || undefined });
@@ -272,7 +272,7 @@ export async function quickLog(q) {
   if (ok && q === 'breast') { await afterLog('feed', data.t); wokeForFeed(data.t); }
 }
 export async function startSleep(t) {
-  if (currentSleep(S)) { toast('She is already marked as asleep.'); return; }
+  if (currentSleep(S)) { toast(`${pron(S).She} is already marked as asleep.`); return; }
   const id = uid(); const at = t || Date.now();
   await guarded(() => saveRow('events', id, { type: 'sleep', t: at, end: null, where: 'crib', note: '' }), `Asleep since ${fmtTime(at)}`, () => guarded(() => removeRow('events', id), 'Removed'));
 }
@@ -286,5 +286,13 @@ export async function endSleep(t) {
 export function wokeForFeed(t) {
   const cur = currentSleep(S);
   if (!cur || t <= cur.t) return;
-  setTimeout(() => toast(`Did she wake up for this feed? The sleep from ${fmtTime(cur.t)} is still running.`, () => endSleep(t), 'End sleep'), 3300);
+  setTimeout(() => toast(`Did ${pron(S).she} wake up for this feed? The sleep from ${fmtTime(cur.t)} is still running.`, () => endSleep(t), 'End sleep'), 3300);
 }
+
+// ---------- night view (per phone) ----------
+// 'auto': 22:00-06:00, 'on': always, 'off': never. nightFull: the normal Today was asked for during the night.
+S.nightPref = ['auto', 'on', 'off'].includes(lsGet('babycarelog.night')) ? lsGet('babycarelog.night') : 'auto';
+S.nightFull = false;
+export function nightActive() { if (S.nightPref === 'on') return true; if (S.nightPref === 'off') return false; const h = new Date().getHours(); return h >= 22 || h < 6; }
+export function setNightPref(v) { S.nightPref = v; S.nightFull = false; lsSet('babycarelog.night', v); render(); }
+export function showFullToday(on) { S.nightFull = on; render(); window.scrollTo(0, 0); }
