@@ -326,3 +326,5 @@ nav.tabs button.fab:active{transform:scale(.96)}
 @media (prefers-reduced-motion:reduce){.night-btn:active{transform:none}}
 .done-mark{width:80px;height:80px;border-radius:50%;background:var(--growth-soft);display:flex;align-items:center;justify-content:center}
 .done-mark svg{width:38px;height:38px;stroke:var(--growth);fill:none;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.c-dry{background:var(--surface);box-shadow:inset 0 0 0 2px var(--muted)}
+.ov .k-dry b{color:var(--muted)}

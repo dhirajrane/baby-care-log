@@ -1,7 +1,7 @@
 // Labels and reference tables.
 export const FEED = { breast: 'Breast', bottle: 'Expressed milk', formula: 'Formula', solids: 'Solids' };
 export const SIDE = { L: 'Left', R: 'Right', both: 'Both sides' };
-export const DIAPER = { wet: 'Wet', dirty: 'Dirty', both: 'Wet + dirty' };
+export const DIAPER = { wet: 'Wet', dirty: 'Dirty', both: 'Wet + dirty', dry: 'Dry' };
 export const COLORS = ['Yellow', 'Mustard', 'Green', 'Brown', 'Black', 'Other'];
 export const TSITE = { rectal: 'Rectal', armpit: 'Armpit', ear: 'Ear', forehead: 'Forehead' };
 export const NOTE_TAGS = { happy: 'Happy', calm: 'Calm', fussy: 'Fussy', sleepy: 'Sleepy', unwell: 'Unwell', milestone: 'Milestone' };

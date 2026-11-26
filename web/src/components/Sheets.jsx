@@ -277,6 +277,7 @@ function LogMenu() {
         <button className="chip" onClick={() => now(() => quickLog('wet'))}><span className="dot c-wet"></span>Wet diaper</button>
         <button className="chip" onClick={() => now(() => quickLog('dirty'))}><span className="dot c-dirty"></span>Dirty diaper</button>
         <button className="chip" onClick={() => now(() => quickLog('both'))}><span className="dot c-both"></span>Wet + dirty</button>
+        <button className="chip" onClick={() => now(() => quickLog('dry'))}><span className="dot c-dry"></span>Dry diaper</button>
         <button className="chip" onClick={() => now(() => quickLog('breast'))}><span className="dot c-feed"></span>{SIDE[nextSide(S)]} breast</button>
       </div>
     </div>

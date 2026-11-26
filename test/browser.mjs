@@ -128,6 +128,13 @@ check(/Offline/.test(await p.locator('#notice').textContent()),'offline notice')
 await ctx.ctx.setOffline(false);await p.evaluate(()=>window.dispatchEvent(new Event('online')));await p.waitForTimeout(2000);
 s=await sync();check(s.events.filter(e=>e.kind==='dirty'&&Date.now()-e.t<60000).length===1,'offline entry synced');
 
+// ---------- dry diaper ----------
+await quick(p, 'Dry diaper'); await p.waitForTimeout(1200);
+let dy = await sync(); check(dy.events.some((e) => e.type === 'diaper' && e.kind === 'dry' && !e.deleted), 'dry diaper logged from the + menu');
+await openLog(p, 'diaper'); await p.locator('.sheet .radios label:has-text("Dry")').click();
+check(!(await p.locator('.sheet .field:has-text("Stool colour")').isVisible()), 'no stool colour for a dry diaper');
+await p.keyboard.press('Escape');
+check(await p.locator('.item:has-text("Dry")').count() >= 1, 'dry diaper in today\'s list');
 // ---------- sleep ----------
 const loc = (ms) => { const d = new Date(ms); const z = (n) => String(n).padStart(2, '0'); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`; };
 await p.locator('nav button:has-text("Today")').click();

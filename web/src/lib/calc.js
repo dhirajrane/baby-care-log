@@ -53,16 +53,18 @@ export function evTitle(e) {
   if (e.temp != null) p.push(fmtTemp(e.temp) + (e.tempSite && e.tempSite !== 'rectal' ? ' (' + TSITE[e.tempSite].toLowerCase() + ')' : ''));
   return p.join(' · ');
 }
-export const evDot = (e) => e.type === 'sleep' ? 'c-sleep' : e.type === 'note' ? 'c-note' : e.type === 'pump' ? 'c-pump' : e.type === 'feed' ? 'c-feed' : e.kind === 'wet' ? 'c-wet' : e.kind === 'dirty' ? 'c-dirty' : 'c-both';
+export const evDot = (e) => e.type === 'sleep' ? 'c-sleep' : e.type === 'note' ? 'c-note' : e.type === 'pump' ? 'c-pump' : e.type === 'feed' ? 'c-feed' : e.kind === 'wet' ? 'c-wet' : e.kind === 'dirty' ? 'c-dirty' : e.kind === 'dry' ? 'c-dry' : 'c-both';
 
 export function dayTotals(list) {
   const f = list.filter((e) => e.type === 'feed');
   const ml = f.reduce((a, e) => a + (+e.ml || 0), 0);
   const wet = list.filter((e) => e.type === 'diaper' && (e.kind === 'wet' || e.kind === 'both')).length;
   const dirty = list.filter((e) => e.type === 'diaper' && (e.kind === 'dirty' || e.kind === 'both')).length;
+  // A dry diaper is a change, but neither wet nor dirty.
+  const dry = list.filter((e) => e.type === 'diaper' && e.kind === 'dry').length;
   const pumps = list.filter((e) => e.type === 'pump');
   const pumped = pumps.reduce((a, e) => a + (+e.ml || 0), 0);
-  return { feeds: f.length, ml, wet, dirty, pumps: pumps.length, pumped };
+  return { feeds: f.length, ml, wet, dirty, dry, pumps: pumps.length, pumped };
 }
 export function intake(list) {
   const f = list.filter((e) => e.type === 'feed');
@@ -211,11 +213,11 @@ export function buildReport(s, from, to) {
     const t = dayTotals(L), r = intake(L); const ds = ses.filter((x) => dayKey(x.t) === k);
     let longest = 0; ses.forEach((x, i) => { if (i && dayKey(x.t) === k) longest = Math.max(longest, x.t - ses[i - 1].t); });
     const tv = L.filter((e) => e.temp != null).map((e) => +e.temp);
-    days.push({ k, complete: k < todayK, feeds: ds.length, ml: r.ml, exp: r.exp, form: r.form, bottles: r.bottles, breast: r.breast, wet: t.wet, dirty: t.dirty, pumps: t.pumps, pumped: t.pumped, maxTemp: tv.length ? Math.max(...tv) : null, longest, any: L.length > 0, sleep: sleepStats(s, keyToMs(k), keyToMs(k) + DAY) });
+    days.push({ k, complete: k < todayK, feeds: ds.length, ml: r.ml, exp: r.exp, form: r.form, bottles: r.bottles, breast: r.breast, wet: t.wet, dirty: t.dirty, dry: t.dry, pumps: t.pumps, pumped: t.pumped, maxTemp: tv.length ? Math.max(...tv) : null, longest, any: L.length > 0, sleep: sleepStats(s, keyToMs(k), keyToMs(k) + DAY) });
   }
   const avg = (arr, f) => { const v = arr.map(f); return v.length ? { avg: v.reduce((a, b) => a + b, 0) / v.length, min: Math.min(...v), max: Math.max(...v), n: v.length } : null; };
   const full = days.filter((d) => d.complete);
-  const feedDays = full.filter((d) => d.feeds > 0), diaperDays = full.filter((d) => d.wet + d.dirty > 0), bottleDays = full.filter((d) => d.ml > 0), pumpDays = full.filter((d) => d.pumps > 0);
+  const feedDays = full.filter((d) => d.feeds > 0), diaperDays = full.filter((d) => d.wet + d.dirty + d.dry > 0), bottleDays = full.filter((d) => d.ml > 0), pumpDays = full.filter((d) => d.pumps > 0);
   const bottlesAll = ses.filter((x) => x.t >= A && x.t < B && x.ml > 0 && !x.unm).map((x) => x.ml);
   const g = s.growth.filter((m) => m.kg != null || m.cm != null || m.head != null).sort((a, b) => a.t - b.t);
   const gIn = g.filter(inR); const before = [...g].filter((m) => m.t < A && m.kg != null).pop() || null;
@@ -229,7 +231,7 @@ export function buildReport(s, from, to) {
     feeds: avg(feedDays, (d) => d.feeds), ml: avg(bottleDays, (d) => d.ml), breast: avg(feedDays, (d) => d.breast), longest: avg(feedDays.filter((d) => d.longest), (d) => d.longest),
     bottle: bottlesAll.length ? { avg: bottlesAll.reduce((a, b) => a + b, 0) / bottlesAll.length, min: Math.min(...bottlesAll), max: Math.max(...bottlesAll), n: bottlesAll.length } : null,
     expShare: (() => { const e = full.reduce((a, d) => a + d.exp, 0), f = full.reduce((a, d) => a + d.form, 0); return e + f ? { exp: Math.round(e / (e + f) * 100), form: Math.round(f / (e + f) * 100) } : null; })(),
-    wet: avg(diaperDays, (d) => d.wet), dirty: avg(diaperDays, (d) => d.dirty), colors, pumped: avg(pumpDays, (d) => d.pumped), pumps: avg(pumpDays, (d) => d.pumps),
+    wet: avg(diaperDays, (d) => d.wet), dirty: avg(diaperDays, (d) => d.dirty), dry: avg(diaperDays, (d) => d.dry), hasDry: diaperDays.some((d) => d.dry > 0), colors, pumped: avg(pumpDays, (d) => d.pumped), pumps: avg(pumpDays, (d) => d.pumps),
     temps: ev.filter((e) => e.temp != null).sort((a, b) => a.t - b.t), notes: ev.filter((e) => e.type === 'note').sort((a, b) => a.t - b.t),
     appts: s.appts.filter((a) => !a.planned && inR(a)), growth: gIn, before, gain, latestW,
     hasPump: days.some((d) => d.pumps), hasTemp: days.some((d) => d.maxTemp != null),

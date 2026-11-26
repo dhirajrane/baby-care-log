@@ -61,6 +61,7 @@ export default function Report() {
       <section className="rsec"><h2>Diapers</h2><div className="rstats">
         <Stat label="Wet per day">{n1(r.wet && r.wet.avg)}<Rng a={r.wet} /></Stat>
         <Stat label="Dirty per day">{n1(r.dirty && r.dirty.avg)}<Rng a={r.dirty} /></Stat>
+        {r.hasDry && <Stat label="Dry per day">{n1(r.dry && r.dry.avg)}<Rng a={r.dry} /></Stat>}
         <Stat label="Stool colours">{Object.keys(r.colors).length ? Object.entries(r.colors).sort((a, b) => b[1] - a[1]).map(([c, n]) => `${c} ${n}×`).join(', ') : '–'}</Stat>
       </div></section>
 

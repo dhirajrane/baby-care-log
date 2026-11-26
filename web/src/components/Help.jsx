@@ -122,6 +122,7 @@ export default function Help() {
         <li>History → <b>Visit report for the doctor</b> (or Calendar → Prepare a visit report) builds a one-page summary for a chosen period. By default it covers the time since the last consultatiebureau, doctor or midwife appointment in Calendar.</li>
         <li><b>Averages per day</b> use complete days that have entries for that item, so a day you didn't log doesn't pull the average down. Today isn't counted in averages because it isn't over yet. The range in brackets is the lowest and highest day.</li>
         <li><b>Weight gain per week</b> runs from the last weight before the period (if there is one) to the latest weight in it. The percentile line compares the latest weight with the WHO weight-for-age reference.</li>
+        <li><b>Diapers:</b> a dry diaper counts as a change, but not as wet or dirty. Days with only dry diapers still count in the averages, as days with 0 wet.</li>
         <li><b>Sleep</b> shows the average per day of total sleep, night sleep, naps, the longest sleep and night wakings, over days that have sleep logged.</li>
         <li><b>Longest stretch</b> is the longest gap between feeds that ended on that day, averaged over the days. Top-ups within 30 minutes count as one feed.</li>
         <li>Use <b>Save as PDF / print</b> to keep or send a copy. Questions you type for the doctor are saved on this phone only.</li>

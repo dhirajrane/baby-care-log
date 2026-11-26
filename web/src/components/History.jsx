@@ -24,6 +24,7 @@ function DayOverview({ list, f, k }) {
   if (f === 'all' || f === 'diaper') { tile('k-wet', t.wet, 'wet'); tile('k-dirty', t.dirty, 'dirty'); }
   if (f === 'diaper') {
     const d = list.filter((e) => e.type === 'diaper'); tile('k-wet', d.length, 'changes');
+    if (t.dry) tile('k-dry', t.dry, 'dry');
     const tv = d.filter((e) => e.temp != null).map((e) => +e.temp);
     if (tv.length) tile(Math.max(...tv) >= 38 ? 'k-hot' : 'k-wet', fmtTemp(Math.max(...tv)), `highest temp · ${tv.length} reading${tv.length > 1 ? 's' : ''}`);
   }
